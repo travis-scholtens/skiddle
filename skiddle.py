@@ -13,10 +13,10 @@ class Url:
 def bootstrap(url: Url) -> None:
   return
 
-def updated_skills() -> None:
+def update_skills() -> None:
   return
 
-def updated_pti() -> None:
+def update_pti() -> None:
   return
 
 if __name__ == '__main__':
