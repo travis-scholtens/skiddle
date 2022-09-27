@@ -1,9 +1,9 @@
-from community import community_louvain
+from community import community_louvain #type:ignore
 from dataclasses import dataclass 
 import itertools
-import networkx
+import networkx #type:ignore
 import os
-import trueskill
+import trueskill #type:ignore
 from typing import *
 
 @dataclass
