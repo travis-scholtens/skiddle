@@ -10,6 +10,27 @@ from typing import *
 class Url:
   url: str
 
+@dataclass
+class Division:
+  name: str
+
+@dataclass
+class Player:
+  name: str
+
+@dataclass
+class Club:
+  name: str
+
+@dataclass
+class Team:
+  name: str
+  club: Club
+  roster: List[Player]
+
+def get_rosters() -> Dict[Division, List[Team]]:
+  pass
+
 def bootstrap(url: Url) -> None:
   return
 
