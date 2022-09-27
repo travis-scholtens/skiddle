@@ -10,14 +10,14 @@ from typing import *
 class Url:
   url: str
 
-def bootstrap(url: Url):
-  pass
+def bootstrap(url: Url) -> None:
+  return
 
 def updated_skills() -> None:
-  pass
+  return
 
 def updated_pti() -> None:
-  pass
+  return
 
 if __name__ == '__main__':
   if os.environ.get('BOOTSTRAP'):
