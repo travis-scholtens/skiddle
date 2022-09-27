@@ -1,5 +1,6 @@
 beautifulsoup4
 firebase-admin
+mypy
 networkx
 python-dateutil
 python-louvain
