@@ -1,3 +1,4 @@
+from bs4 import BeautifulSoup #type:ignore
 from community import community_louvain #type:ignore
 from dataclasses import dataclass 
 import itertools
@@ -5,6 +6,7 @@ import networkx #type:ignore
 import os
 import trueskill #type:ignore
 from typing import *
+from urllib import parse, request
 
 @dataclass
 class Url:
@@ -27,6 +29,8 @@ class Team:
   name: str
   club: Club
   roster: List[Player]
+
+get_url_page: Callable[[Url], BeautifulSoup] = lambda url: BeautifulSoup(request.urlopen(url.url).read())
 
 def get_rosters() -> Dict[Division, List[Team]]:
   pass
