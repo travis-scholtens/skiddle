@@ -13,4 +13,6 @@ COPY . ./
 # Install production dependencies.
 RUN pip install --no-cache-dir -r requirements.txt
 
+RUN mypy skiddle.py
+
 CMD exec python skiddle.py
