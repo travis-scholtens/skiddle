@@ -1,4 +1,5 @@
 firebase-admin
 networkx
 python-dateutil
+python-louvain
 trueskill
