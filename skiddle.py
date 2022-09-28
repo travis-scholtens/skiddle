@@ -13,23 +13,23 @@ import trueskill #type:ignore
 from typing import Callable, Dict, Generator, Iterable, List, Optional, Tuple, Union
 from urllib import parse, request
 
-@dataclass
+@dataclass(frozen=True)
 class Url:
   url: str
 
-@dataclass
+@dataclass(frozen=True)
 class Division:
   name: str
 
-@dataclass
+@dataclass(frozen=True)
 class Player:
   name: str
 
-@dataclass
+@dataclass(frozen=True)
 class Club:
   name: str
 
-@dataclass
+@dataclass(frozen=True)
 class Team:
   name: str
   club: Club
@@ -39,7 +39,7 @@ SetResult = Tuple[int, int]
 
 Score = Tuple # 2 or 3 SetResults
 
-@dataclass
+@dataclass(frozen=True)
 class Match:
   date: datetime.date
   home: Tuple[Player, Player]
