@@ -8,7 +8,7 @@ import networkx #type:ignore
 import os
 import re
 import trueskill #type:ignore
-from typing import *
+from typing import Callable, Dict, List, Tuple, Union
 from urllib import parse, request
 
 @dataclass
