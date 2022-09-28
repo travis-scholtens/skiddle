@@ -5,3 +5,4 @@ networkx
 python-dateutil
 python-louvain
 trueskill
+types-python-dateutil
