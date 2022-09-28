@@ -227,7 +227,8 @@ if __name__ == '__main__':
   db = database(json.loads(os.environ['FIREBASE_CERT']))
   url = Url(os.environ['HOME_URL'])
   home = get_url_page(url)
-  (league, get_link) = expand_fn(url)
+  (league, expand) = expand_fn(url)
+  get_link = lambda link: get_url_page(expand(link))
   if os.environ.get('BOOT_STRAP'):
     print('Bootstrapping')
     bootstrap(home, league, get_link, db)
