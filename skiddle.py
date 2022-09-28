@@ -35,7 +35,7 @@ class Team:
 
 SetResult = Tuple[int, int]
 
-Score = Tuple[SetResult, SetResult] | Tuple[SetResult, SetResult, SetResult]
+Score = Tuple # 2 or 3 SetResults
 
 @dataclass
 class Match:
