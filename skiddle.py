@@ -350,7 +350,7 @@ def get_team(page: BeautifulSoup) -> tuple[Division, Team]:
   (name, club) = read_team_and_club_name(page)
   players = list(read_players(page, name))
   return (read_division(page),
-          Team(name, club, players))
+          Team(name, Club(club), players))
 
 def get_teams(links: list[bs4.Tag],
               get_link: Callable[[bs4.Tag], BeautifulSoup]
