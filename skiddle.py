@@ -245,7 +245,7 @@ def cohort_skill(
   for cohort in sorted(set(cohorts.values())):
     cohort_skill: dict[Player, trueskill.Rating] = {}
     skills[cohort] = cohort_skill
-    for match in matches:
+    for match in sorted(matches, key=lambda m: m.date):
       if not any([cohorts.get(player) == cohort
                   for player in (match.home + match.away)]):
         continue
@@ -310,7 +310,7 @@ def main_cohort(cohorts: dict[Player, Cohort], players: set[Player]) -> Cohort:
 
 def division_ratings(
     divisions: dict[Division, set[Player]],
-    matches: list[Match]) -> dict[Division, dict[Player, trueskill.Rating]]:
+    matches: list[Match]) -> tuple[trueskill.TrueSkill, dict[Division, dict[Player, trueskill.Rating]]]:
   cohorts = identify_cohorts(matches)
   env = rating_env(matches)
   skills = cohort_skill(env, cohorts, matches)
@@ -325,7 +325,7 @@ def division_ratings(
             deltas.get((cohorts[player], target_cohort)))
         for player in players if player in cohorts
     }
-  return ratings
+  return (env, ratings)
 
 def read_division(team: BeautifulSoup) -> Division:
   return Division(next(team
@@ -376,6 +376,62 @@ def players(teams: list[Team]) -> set[Player]:
     ps |= set(team.roster)
   return ps
 
+sub_pattern = re.compile('\(S.?\)')
+
+def read_partners(partners: str) -> Tuple[Player, Player]:
+  names = sorted([
+      sub_pattern.sub('', player).strip() for player in partners.split('/')
+  ])
+  if len(names) == 2:
+    return (Player(names[0]), Player(names[1]))
+  return None
+
+tiebreak_pattern = re.compile('\[([0-9]+-[0-9]+)\]')
+
+def to_set_score(s: str) -> Tuple[int, int]:
+  try:
+    return tuple([int(g) for g in s.split('-')])
+  except ValueError:
+    return (0,0)
+
+def read_set_score(set_score: str) -> Tuple[int, int]:
+  games = to_set_score(tiebreak_pattern.sub('', set_score))
+  tiebreak_match = tiebreak_pattern.search(set_score)
+  if tiebreak_match:
+    tiebreak = to_set_score(tiebreak_match[1])
+    if games in [(0,1), (1,0)]:
+      return tiebreak
+  return games
+
+def read_score(result: str) -> Score:
+  return tuple([
+      read_set_score(set_score) for set_score in result.split(',')
+  ])
+
+def get_current_matches(matches_page: BeautifulSoup) -> Generator[Match, None, None]:
+  for results in matches_page.find_all('div', class_='match_results_table'):
+    (date, *scores) = results.find_all('div', class_='match_rest')
+    date = dateutil.parser.parse(next(date.stripped_strings)).date()
+    for score in scores:
+      try:
+        (home, result, away) = [next(div.stripped_strings) for div in (score.previous_sibling, score, score.next_sibling)]
+      except StopIteration:
+        continue
+      home = read_partners(home)
+      away = read_partners(away)
+      if home and away:
+        yield Match(date, home, away, read_score(result))
+
+division_pattern = re.compile('/\?.*&did=.*')
+
+def new_matches(home: BeautifulSoup,
+                get_link: Callable[[bs4.Tag], BeautifulSoup],) -> Dict[Division, List[Match]]:
+  return {
+      division: list(valid_matches(unique_matches(get_current_matches(get_link(get_link(link).find('a', string='Matches'))))))
+      for (division, link) in
+      [(next(a.stripped_strings), a) for a in [d.find('a', href=division_pattern) for d in home.find_all('div', class_='div_list_option')] if a]
+  }
+
 def bootstrap(home: BeautifulSoup,
               league: League,
               get_link: Callable[[bs4.Tag], BeautifulSoup],
@@ -386,7 +442,24 @@ def bootstrap(home: BeautifulSoup,
        league,
        db)
 
-def update_skills() -> None:
+def update_skills(
+    env: trueskill.TrueSkill,
+    division_ratings: dict[Division, dict[Player, trueskill.Rating]],
+    division_matches: dict[Division, list[Match]]) -> None:
+  for (division, matches) in division_matches.items():
+    skill = division_ratings[division]
+    for match in sorted(matches, key=lambda m: m.date):
+      (home, away) = env.rate(
+          [(skill.get(match.home[0], env.create_rating()),
+            skill.get(match.home[1], env.create_rating())),
+           (skill.get(match.away[0], env.create_rating()),
+            skill.get(match.away[1], env.create_rating()))],
+          ranks=ranks(match))
+      skill[match.home[0]] = home[0]
+      skill[match.home[1]] = home[1]
+      skill[match.away[0]] = away[0]
+      skill[match.away[1]] = away[1]
+    print(skill)
   return
 
 def update_pti() -> None:
@@ -405,9 +478,9 @@ if __name__ == '__main__':
     print('Setting initial skill')
     matches = read_matches(league, db)
     rosters = get_rosters(home, get_link)
-    ratings = division_ratings(
+    (env, ratings) = division_ratings(
         {division: players(teams) for (division, teams) in rosters.items()},
         matches)
     print('Updating')
-    update_skills()
+    update_skills(env, ratings, new_matches(home, get_link))
     update_pti()
