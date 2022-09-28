@@ -10,6 +10,7 @@ from firebase_admin import firestore
 from dateutil import parser
 import itertools
 import json
+import math
 import networkx #type:ignore
 import os
 import re
@@ -217,7 +218,7 @@ def read_matches(league: League, db: FirestoreClient) -> List[Match]:
 def identify_cohorts(matches: list[Match]) -> dict[Player, Cohort]:
   edges = set()
   for match in matches:
-    edges |= {tuple(sorted(ps)) for ps in itertools.product(match.home, match.away)}
+    edges |= {tuple(sorted(ps, key=lambda p: p.name)) for ps in itertools.product(match.home, match.away)}
   return community_louvain.best_partition(
       networkx.Graph(edges))
 
@@ -242,7 +243,8 @@ def cohort_skill(
     ) -> dict[Cohort, dict[Player, trueskill.Rating]]:
   skills = dict[Cohort, dict[Player, trueskill.Rating]]
   for cohort in sorted(set(cohorts.values())):
-    cohort_skill = skills[cohort] = {}
+    skills[cohort] = {}
+    cohort_skill = skills[cohort]
     for match in matches:
       if not any([cohorts.get(player) == cohort
                   for player in (match.home + match.away)]):
@@ -293,6 +295,15 @@ def rating(
   return trueskill.Rating(mu=skill.mu + delta.mu,
                           sigma=math.sqrt(skill.sigma * skill.sigma + delta.sigma * delta.sigma))
 
+def main_cohort(cohorts: dict[Player, Cohort], teams: List[Team]) -> Cohort:
+  cohort_counts = [0 for _ in range(len(set(cohorts.values())))]
+  for team in teams:
+    for player in team.roster:
+      if player not in cohorts:
+        continue
+      cohort_counts[cohorts[player]] += 1
+  return max(range(len(cohort_counts)), key=lambda i: cohort_counts[i])
+
 def division_ratings(
     divisions: dict[Division, set[Player]],
     matches: list[Match]) -> dict[Division, dict[Player, trueskill.Rating]]:
@@ -302,7 +313,7 @@ def division_ratings(
   deltas = cohort_deltas(set(cohorts.values()), skills)
   ratings: dict[Division, dict[Player, trueskill.Rating]] = {}
   for (division, players) in divisions.items():
-    target_cohort = main_cohort(players)
+    target_cohort = main_cohort(cohorts, players)
     ratings[division] = {
         player: rating(
             env,
