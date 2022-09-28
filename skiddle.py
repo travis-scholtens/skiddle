@@ -395,7 +395,7 @@ def to_set_score(s: str) -> Tuple[int, int]:
     return (0,0)
   if len(scores) != 2:
     return (0,0)
-  return scores
+  return (scores[0], scores[1])
 
 def read_set_score(set_score: str) -> Tuple[int, int]:
   games = to_set_score(tiebreak_pattern.sub('', set_score))
