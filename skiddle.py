@@ -487,6 +487,7 @@ if __name__ == '__main__':
     (env, ratings) = division_ratings(
         {division: players(teams) for (division, teams) in rosters.items()},
         matches)
+    print(ratings.keys())
     print('Updating')
     update_skills(env, ratings, new_matches(home, get_link))
     update_pti()
