@@ -482,8 +482,8 @@ def populate_ranks(env: trueskill.TrueSkill,
                    team: Team,
                    skill: dict[Player, trueskill.Rating],
                    pti: dict[Player, float]) -> dict:
-  skill_ranks = {n: env.expose(skill[n]) for n in team.roster if n in skill}
-  pti_ranks = {n: pti[n] for n in team.roster if n in pti}
+  skill_ranks: dict[str, Optional[float]] = {n.name: env.expose(skill[n]) for n in team.roster if n in skill}
+  pti_ranks: dict[str, Optional[float]] = {n.name: pti[n] for n in team.roster if n in pti}
   for name in team.roster:
     if name not in skill_ranks:
       skill_ranks[name] = None
@@ -529,8 +529,9 @@ def update_ranks(
        .collection('teams')
        .document(abbrs[team.name])
        .set(populate_ranks(
+            env,
             team,
-            ratings[div],
+            ratings[division],
             pti)))
   print(f'Wrote ratings for {sum([len(d) for d in rosters.values()])} teams')
 
