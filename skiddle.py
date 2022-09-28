@@ -4,6 +4,7 @@ from community import community_louvain #type:ignore
 from dataclasses import dataclass
 import datetime
 import dateutil
+from dateutil import parser
 import itertools
 import networkx #type:ignore
 import os
@@ -95,8 +96,8 @@ def get_match(date: datetime.date, home_row: bs4.Tag, away_row: bs4.Tag) -> Opti
           (away_sets[0], away_sets[1], away_sets[2]))
   )
 
-def get_individual_matches(match_link: bs4.Tag, get_link: Callable[[bs4.Tag], BeautifulSoup]) -> Generator[List[Match], None, None]:
-  date = dateutil.parser.parse(match_link.string).date()
+def get_individual_matches(match_link: bs4.Tag, get_link: Callable[[bs4.Tag], BeautifulSoup]) -> Generator[Match, None, None]:
+  date = parser.parse(match_link.string).date()
   row = get_link(match_link).find('th', string='Line').find_parent('table').find('tr', class_='printrow')
   while row:
     next = row.find_next_sibling('tr', class_='printrowalt')
@@ -122,10 +123,10 @@ def get_team_matches(team: BeautifulSoup, get_link: Callable[[bs4.Tag], Beautifu
   return sum(get_schedule_matches(get_link(team.find('a', string='Show Schedule')), get_link), [])
 
 def get_division_matches(division: BeautifulSoup, get_link: Callable[[bs4.Tag], BeautifulSoup]) -> List[Match]:
-  return sum([get_team_matches(get_link(a)) for a in division.find('th', string='TeamName').find_parent('table').find_all('a', href=lambda s: s != '#')], [])
+  return sum([get_team_matches(get_link(a), get_link) for a in division.find('th', string='TeamName').find_parent('table').find_all('a', href=lambda s: s != '#')], [])
 
 def get_matches(paths: Iterable[bs4.Tag], get_link: Callable[[bs4.Tag], BeautifulSoup]) -> List[Match]:
-  return sum([get_division_matches(get_link(path)) for path in paths], [])
+  return sum([get_division_matches(get_link(path), get_link) for path in paths], [])
 
 def unique_matches(matches: Iterable[Match]) -> Generator[Match, None, None]:
   seen = set()
