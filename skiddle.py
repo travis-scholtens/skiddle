@@ -4,8 +4,12 @@ from community import community_louvain #type:ignore
 from dataclasses import dataclass
 import datetime
 import dateutil
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import firestore
 from dateutil import parser
 import itertools
+import json
 import networkx #type:ignore
 import os
 import re
@@ -45,6 +49,13 @@ class Match:
   home: Tuple[Player, Player]
   away: Tuple[Player, Player]
   score: Score
+
+FirebaseClient = firestore._FirebaseClient
+
+database: Callable[[Dict], FirebaseClient] = (
+    lambda cert: firestore.client(
+        firebase_admin.initialize_app(
+            credentials.Certificate(cert))))
 
 def get_url_page(url: Url) -> BeautifulSoup:
   print(f'Parsing {url.url}')
@@ -207,6 +218,7 @@ def update_pti() -> None:
 
 if __name__ == '__main__':
   print(os.environ)
+  db = database(json.loads(os.environ['FIREBASE_CERT']))
   if os.environ.get('BOOT_STRAP'):
     print('Bootstrapping')
     bootstrap(Url(os.environ['HOME_URL']))
