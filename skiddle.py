@@ -325,6 +325,7 @@ def division_ratings(
             deltas.get((cohorts[player], target_cohort)))
         for player in players if player in cohorts
     }
+  print(f'Assigned {sum([len(d) for d in ratings.values()])} initial ratings')
   return (env, ratings)
 
 def read_division(team: BeautifulSoup) -> Division:
@@ -429,11 +430,13 @@ division_pattern = re.compile('/\?.*&did=.*')
 
 def new_matches(home: BeautifulSoup,
                 get_link: Callable[[bs4.Tag], BeautifulSoup],) -> Dict[Division, List[Match]]:
-  return {
+  matches {
       division: list(valid_matches(unique_matches(get_current_matches(get_link(get_link(link).find('a', string='Matches'))))))
       for (division, link) in
       [(next(a.stripped_strings), a) for a in [d.find('a', href=division_pattern) for d in home.find_all('div', class_='div_list_option')] if a]
   }
+  print(f'Read {sum([len(d) for d in matches.values()])} new matches')
+  return matches
 
 def bootstrap(home: BeautifulSoup,
               league: League,
