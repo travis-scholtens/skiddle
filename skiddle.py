@@ -214,7 +214,7 @@ def read_matches(league: League, db: FirestoreClient) -> List[Match]:
   print(f'Read {len(matches)} matches')
   return matches
 
-def identify_cohorts(matches: list[Match]) -> dict[Player, Cohort]
+def identify_cohorts(matches: list[Match]) -> dict[Player, Cohort]:
   edges = set()
   for match in matches:
     edges |= {tuple(sorted(ps)) for ps in itertools.product(match.home, match.away)}
