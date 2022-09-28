@@ -261,7 +261,7 @@ def cohort_skill(
       cohort_skill[match.away[1]] = away[1]
   return skills
 
-def mean_rating(ratings: Iterable[trueskill.Rating]) -> trueskill.Rating:
+def mean_rating(ratings: list[trueskill.Rating]) -> trueskill.Rating:
   return trueskill.Rating(mu=sum([r.mu for r in ratings])/len(ratings),
                           sigma=math.sqrt(sum([r.sigma * r.sigma for r in ratings])/len(ratings)))
 
@@ -295,14 +295,13 @@ def rating(
   return trueskill.Rating(mu=skill.mu + delta.mu,
                           sigma=math.sqrt(skill.sigma * skill.sigma + delta.sigma * delta.sigma))
 
-def main_cohort(cohorts: dict[Player, Cohort], teams: List[Team]) -> Cohort:
+def main_cohort(cohorts: dict[Player, Cohort], players: set[Player]) -> Cohort:
   cohort_counts = [0 for _ in range(len(set(cohorts.values())))]
-  for team in teams:
-    for player in team.roster:
-      if player not in cohorts:
-        continue
-      cohort_counts[cohorts[player]] += 1
-  return max(range(len(cohort_counts)), key=lambda i: cohort_counts[i])
+  for player in players:
+    if player not in cohorts:
+      continue
+    cohort_counts[cohorts[player]] += 1
+  return Cohort(max(range(len(cohort_counts)), key=lambda i: cohort_counts[i]))
 
 def division_ratings(
     divisions: dict[Division, set[Player]],
@@ -317,8 +316,9 @@ def division_ratings(
     ratings[division] = {
         player: rating(
             env,
-            skills.get(cohorts.get(player), {}).get(player),
-            deltas.get((cohorts.get(player), main_cohort)))
+            skills[cohorts[player]].get(player),
+            deltas.get((cohorts[player], target_cohort)))
+        for player in players if player in cohorts
     }
   return ratings
 
