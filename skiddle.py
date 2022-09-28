@@ -50,9 +50,9 @@ class Match:
   away: Tuple[Player, Player]
   score: Score
 
-FirebaseClient = firestore._FirebaseClient
+FirestoreClient = firestore._FirestoreClient
 
-database: Callable[[Dict], FirebaseClient] = (
+database: Callable[[Dict], FirestoreClient] = (
     lambda cert: firestore.client(
         firebase_admin.initialize_app(
             credentials.Certificate(cert))))
