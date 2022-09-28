@@ -378,7 +378,7 @@ def players(teams: list[Team]) -> set[Player]:
 
 sub_pattern = re.compile('\(S.?\)')
 
-def read_partners(partners: str) -> Tuple[Player, Player]:
+def read_partners(partners: str) -> Optional[Tuple[Player, Player]]:
   names = sorted([
       sub_pattern.sub('', player).strip() for player in partners.split('/')
   ])
@@ -390,9 +390,12 @@ tiebreak_pattern = re.compile('\[([0-9]+-[0-9]+)\]')
 
 def to_set_score(s: str) -> Tuple[int, int]:
   try:
-    return tuple([int(g) for g in s.split('-')])
+    scores = tuple([int(g) for g in s.split('-')])
   except ValueError:
     return (0,0)
+  if len(scores) != 2:
+    return (0,0)
+  return scores
 
 def read_set_score(set_score: str) -> Tuple[int, int]:
   games = to_set_score(tiebreak_pattern.sub('', set_score))
