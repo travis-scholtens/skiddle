@@ -73,14 +73,18 @@ def transpose_scores(home_scores: Tuple[str, str, str], away_scores: Tuple[str, 
   sets = 2 if third_set_scores == {''} or third_set_scores == {'0'} else 3
   return tuple([(int(home_scores[i]), int(away_scores[i])) for i in range(sets)])
 
-def get_match(date: datetime.date, home_row: bs4.Tag, away_row: bs4.Tag) -> Match:
+def get_match(date: datetime.date, home_row: bs4.Tag, away_row: bs4.Tag) -> Optional[Match]:
   (_, _, _, home_partners, *home_sets) = [td.get_text().strip() for td in home_row.find_all('td')]
   (_, _, away_partners, *away_sets) = [td.get_text().strip() for td in away_row.find_all('td')]
+  if not (len(home_sets) == len(away_sets) == 3):
+    return None
   return Match(
       date,
       tuple(sorted([partner.strip() for partner in home_partners.split('\n')])),
       tuple(sorted([partner.strip() for partner in away_partners.split('\n')])),
-      transpose_scores(home_sets, away_sets)
+      transpose_scores(
+          (home_sets[0], home_sets[1], home_sets[2]), 
+          (away_sets[0], away_sets[1], away_sets[2]))
   )
 
 def get_individual_matches(match_link: bs4.Tag) -> Generator[List[Match], None, None]:
