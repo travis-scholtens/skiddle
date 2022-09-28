@@ -14,7 +14,7 @@ import networkx #type:ignore
 import os
 import re
 import trueskill #type:ignore
-from typing import Callable, Dict, Generator, Iterable, List, Optional, Tuple, Union
+from typing import Callable, Dict, Generator, Iterable, List, Optional, Tuple, TypeAlias, Union
 from urllib import parse, request
 
 @dataclass(frozen=True)
@@ -50,7 +50,7 @@ class Match:
   away: Tuple[Player, Player]
   score: Score
 
-FirestoreClient = firestore._FirestoreClient
+FirestoreClient: TypeAlias = firestore._FirestoreClient
 
 database: Callable[[Dict], FirestoreClient] = (
     lambda cert: firestore.client(
