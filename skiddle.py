@@ -481,7 +481,7 @@ def get_pti(home: BeautifulSoup,
 def populate_ranks(env: trueskill.TrueSkill,
                    team: Team,
                    skill: dict[Player, trueskill.Rating],
-                   pti: dict[Player, float]) -> dict
+                   pti: dict[Player, float]) -> dict:
   skill_ranks = {n: env.expose(skill[n]) for n in team.roster if n in skill}
   pti_ranks = {n: pti[n] for n in team.roster if n in pti}
   for name in team.roster:
