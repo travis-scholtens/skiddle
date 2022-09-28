@@ -243,8 +243,8 @@ def cohort_skill(
     ) -> dict[Cohort, dict[Player, trueskill.Rating]]:
   skills = Dict[Cohort, Dict[Player, trueskill.Rating]]
   for cohort in sorted(set(cohorts.values())):
-    skills[cohort] = {}
-    cohort_skill = skills[cohort]
+    cohort_skill: dict[Player, trueskill.Rating] = {}
+    skills[cohort] = cohort_skill
     for match in matches:
       if not any([cohorts.get(player) == cohort
                   for player in (match.home + match.away)]):
