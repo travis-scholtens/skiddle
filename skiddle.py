@@ -200,9 +200,9 @@ archive_matches: Callable[[BeautifulSoup, Callable[[bs4.Tag], BeautifulSoup]], L
 )
 
 def write_matches(matches: List[Match], league: League, db: FirestoreClient) -> None:
-  db.collection('matches').document(league).set([
-      repr(match) for match in matches
-  ])
+  db.collection('matches').document(league).set({
+      'archive': [repr(match) for match in matches]
+  })
   print(f'Wrote {len(matches)} matches')
 
 def get_rosters() -> Dict[Division, List[Team]]:
