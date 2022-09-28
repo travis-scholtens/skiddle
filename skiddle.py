@@ -472,7 +472,7 @@ def get_pti(home: BeautifulSoup,
            ) -> dict[Player, float]:
   page = get_link(home.find('a', string='Ratings'))
   return {
-      f'{tds[0].string} {tds[1].string}'.strip():
+      Player(f'{tds[0].string} {tds[1].string}'.strip()):
       float(tds[-1].string)
       for tr in page.find_all('tr', class_='teams')
       for tds in [tr.find_all('td')]
@@ -484,7 +484,8 @@ def populate_ranks(env: trueskill.TrueSkill,
                    pti: dict[Player, float]) -> dict:
   skill_ranks: dict[str, Optional[float]] = {n.name: env.expose(skill[n]) for n in team.roster if n in skill}
   pti_ranks: dict[str, Optional[float]] = {n.name: pti[n] for n in team.roster if n in pti}
-  for name in team.roster:
+  for player in team.roster:
+    name = player.name
     if name not in skill_ranks:
       skill_ranks[name] = None
     if name not in pti_ranks:
