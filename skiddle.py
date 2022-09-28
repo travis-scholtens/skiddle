@@ -465,11 +465,74 @@ def update_skills(
       skill[match.home[1]] = home[1]
       skill[match.away[0]] = away[0]
       skill[match.away[1]] = away[1]
-    print(skill)
   return
 
-def update_pti() -> None:
-  return
+def get_pti(home: BeautifulSoup,
+            get_link: Callable[[bs4.Tag], BeautifulSoup],
+           ) -> dict[Player, float]:
+  page = get_link(home.find('a', string='Ratings'))
+  return {
+      f'{tds[0].string} {tds[1].string}'.strip():
+      float(tds[-1].string)
+      for tr in page.find_all('tr', class_='teams')
+      for tds in [tr.find_all('td')]
+  }
+
+def populate_ranks(env: trueskill.TrueSkill,
+                   team: Team,
+                   skill: dict[Player, trueskill.Rating],
+                   pti: dict[Player, float]) -> dict
+  skill_ranks = {n: env.expose(skill[n]) for n in team.roster if n in skill}
+  pti_ranks = {n: pti[n] for n in team.roster if n in pti}
+  for name in team.roster:
+    if name not in skill_ranks:
+      skill_ranks[name] = None
+    if name not in pti_ranks:
+      pti_ranks[name] = None
+  return { 'name': team.name, 'skill': skill_ranks, 'pti': pti_ranks }
+
+def update_ranks(
+    env: trueskill.TrueSkill,
+    league: League,
+    rosters: Dict[Division, List[Team]],
+    ratings: dict[Division, dict[Player, trueskill.Rating]],
+    pti: dict[Player, float],
+    db: FirestoreClient) -> None:
+  ab = re.compile('^(.*) ([A-D1-3])$')
+  abbrs = {
+      'Cherry Valley Club': 'cv',
+      'Garden City Country Club': 'gccc',
+      'Garden City Recreation': 'gcrec',
+      'Manhasset Bay Yacht Club': 'mbyc',
+      'Nassau Country Club': 'nas',
+      'Plandome Country Club': 'plan',
+      'Port Washington Yacht Club': 'pwyc',
+      'Southward Ho Country Club': 'soho',
+      'Crest Hollow Country Club': 'crest',
+      'Garden City Golf Club': 'gcgc',
+      'Hempstead Golf and Country Club': 'hemp',
+      'Huntington Country Club': 'hunt',
+      'Creek-Piping Rock': 'cpr',
+      'The Head of the Bay Club': 'hotb',
+      'Village Club of Sands Point': 'sp'
+  }
+  for (division, teams) in rosters.items():
+    dabbr = division.name.replace('Division ', 'd')
+    for team in teams:
+      abm = ab.match(team.name)
+      if abm:
+        abbrs[team.name] = abbrs[abm[1]] + abm[2].lower()
+      (db.collection('rankings')
+       .document(league)
+       .collection('divisions')
+       .document(dabbr)
+       .collection('teams')
+       .document(abbrs[team.name])
+       .set(populate_ranks(
+            team,
+            ratings[div],
+            pti)))
+  print(f'Wrote ratings for {sum([len(d) for d in rosters.values()])} teams')
 
 if __name__ == '__main__':
   db = database(json.loads(os.environ['FIREBASE_CERT']))
@@ -490,4 +553,5 @@ if __name__ == '__main__':
     print(ratings.keys())
     print('Updating')
     update_skills(env, ratings, new_matches(home, get_link))
-    update_pti()
+    pti = get_pti(home, get_link)
+    update_ranks(env, league, rosters, ratings, pti, db)
