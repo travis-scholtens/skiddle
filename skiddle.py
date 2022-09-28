@@ -70,7 +70,7 @@ def get_division_paths(year: BeautifulSoup) -> Generator[bs4.Tag, None, None]:
       if value_source:
         param += '=' + value_source['value']
       params.append(param)
-    yield bs4.Tag('a', href=f'{form["action"]}?{"&".join(params)}')
+    yield bs4.Tag(name='a', attrs={'href': f'{form["action"]}?{"&".join(params)}'})
 
 def transpose_scores(home_scores: Tuple[str, str, str], away_scores: Tuple[str, str, str]) -> Score:
   third_set_scores = {home_scores[2], away_scores[2]}
