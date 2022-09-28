@@ -433,7 +433,7 @@ def new_matches(home: BeautifulSoup,
   matches = {
       division: list(valid_matches(unique_matches(get_current_matches(get_link(get_link(link).find('a', string='Matches'))))))
       for (division, link) in
-      [(next(a.stripped_strings), a) for a in [d.find('a', href=division_pattern) for d in home.find_all('div', class_='div_list_option')] if a]
+      [(Division(next(a.stripped_strings)), a) for a in [d.find('a', href=division_pattern) for d in home.find_all('div', class_='div_list_option')] if a]
   }
   print(f'Read {sum([len(d) for d in matches.values()])} new matches')
   return matches
