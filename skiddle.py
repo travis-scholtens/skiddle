@@ -218,6 +218,16 @@ def update_pti() -> None:
 
 if __name__ == '__main__':
   print(os.environ)
+
+  creds = credentials.Certificate(json.loads(os.environ['FIREBASE_CERT']))
+  print('cert')
+  app = firebase_admin.initialize_app(creds)
+  print('app')
+  db0 = firestore.client()
+  print('db')
+        
+            
+
   db = database(json.loads(os.environ['FIREBASE_CERT']))
   if os.environ.get('BOOT_STRAP'):
     print('Bootstrapping')
