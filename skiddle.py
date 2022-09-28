@@ -173,7 +173,7 @@ def bootstrap(url: Url) -> None:
       lambda expand: lambda link: get_url_page(expand(link))
   )(expand_fn(url))
   
-  home: = get_url_page(url)
+  home = get_url_page(url)
   previous_matches = archive_matches(
       get_link(home.find('a', string='Archives')),
       get_link)
