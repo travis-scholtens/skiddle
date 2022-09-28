@@ -14,12 +14,14 @@ import networkx #type:ignore
 import os
 import re
 import trueskill #type:ignore
-from typing import Callable, Dict, Generator, Iterable, List, Optional, Tuple, TypeAlias, Union
+from typing import Callable, Dict, Generator, Iterable, List, NewType, Optional, Tuple, TypeAlias, Union
 from urllib import parse, request
 
 @dataclass(frozen=True)
 class Url:
   url: str
+
+League = NewType('League', str)
 
 @dataclass(frozen=True)
 class Division:
@@ -61,10 +63,11 @@ def get_url_page(url: Url) -> BeautifulSoup:
   print(f'Parsing {url.url}')
   return BeautifulSoup(request.urlopen(url.url).read())
 
-def expand_fn(url: Url) -> Callable[[bs4.Tag], Url]:
+def expand_fn(url: Url) -> tuple[League, Callable[[bs4.Tag], Url]]:
   uri = parse.urlparse(url.url)
   host = f'{uri.scheme}://{uri.netloc}'
-  return lambda link: Url(host + link['href'])
+  return (League(uri.netloc.split('.')[0]),
+          lambda link: Url(host + link['href']))
 
 def get_division_paths(year: BeautifulSoup) -> Generator[bs4.Tag, None, None]:
   for option in year.find_all('option'):    
@@ -196,19 +199,23 @@ archive_matches: Callable[[BeautifulSoup, Callable[[bs4.Tag], BeautifulSoup]], L
       ))
 )
 
+def write_matches(matches: List[Match], league: League, db: FirebaseClient) -> None:
+  db.collections('matches').document(league).set([
+      repr(match) for match in matches
+  ])
+
 def get_rosters() -> Dict[Division, List[Team]]:
   pass
 
-def bootstrap(url: Url) -> None:
-  get_link: Callable[[bs4.Tag], BeautifulSoup] = (
-      lambda expand: lambda link: get_url_page(expand(link))
-  )(expand_fn(url))
-  
-  home = get_url_page(url)
-  previous_matches = archive_matches(
-      get_link(home.find('a', string='Archives')),
-      get_link)
-  return
+def bootstrap(home: BeautifulSoup,
+              league: League,
+              get_link: Callable[[bs4.Tag], BeautifulSoup],
+              db: FirebaseClient) -> None:
+   write_matches(
+       archive_matches(get_link(home.find('a', string='Archives')),
+                       get_link),
+       league,
+       db)
 
 def update_skills() -> None:
   return
@@ -217,21 +224,13 @@ def update_pti() -> None:
   return
 
 if __name__ == '__main__':
-  print(os.environ)
-
-  creds = credentials.Certificate(json.loads(os.environ['FIREBASE_CERT']))
-  print('cert')
-  app = firebase_admin.initialize_app(creds)
-  print('app')
-  db0 = firestore.client()
-  print('db')
-        
-            
-
   db = database(json.loads(os.environ['FIREBASE_CERT']))
+  url = Url(os.environ['HOME_URL'])
+  home = get_url_page(url)
+  (league, get_link) = expand_fn(url)
   if os.environ.get('BOOT_STRAP'):
     print('Bootstrapping')
-    bootstrap(Url(os.environ['HOME_URL']))
+    bootstrap(home, league, get_link, db)
   else:
     print('Updating')
     update_skills()
