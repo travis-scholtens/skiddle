@@ -207,7 +207,7 @@ def update_pti() -> None:
 
 if __name__ == '__main__':
   print(os.environ)
-  if os.environ.get('BOOTSTRAP'):
+  if os.environ.get('BOOT_STRAP'):
     print('Bootstrapping')
     bootstrap(Url(os.environ['HOME_URL']))
   else:
