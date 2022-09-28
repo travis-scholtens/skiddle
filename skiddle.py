@@ -265,9 +265,14 @@ def mean_rating(ratings: list[trueskill.Rating]) -> trueskill.Rating:
   return trueskill.Rating(mu=sum([r.mu for r in ratings])/len(ratings),
                           sigma=math.sqrt(sum([r.sigma * r.sigma for r in ratings])/len(ratings)))
 
-def mean_skill_delta(from_skill: Dict[Player, trueskill.Rating], to_skill: Dict[Player, trueskill.Rating]) -> trueskill.Rating:
+@dataclass
+class ZeroDelta:
+  mu: float = 0
+  sigma: float = 0
+
+def mean_skill_delta(from_skill: Dict[Player, trueskill.Rating], to_skill: Dict[Player, trueskill.Rating]) -> trueskill.Rating | ZeroDelta:
   if from_skill == to_skill:
-    return trueskill.Rating(mu=0, sigma=0)
+    return ZeroDelta()
   overlap = set(from_skill) & set(to_skill)
   if not overlap:
     return None
@@ -279,7 +284,7 @@ def mean_skill_delta(from_skill: Dict[Player, trueskill.Rating], to_skill: Dict[
 def cohort_deltas(
     cohorts: set[Cohort],
     skills: dict[Cohort, dict[Player, trueskill.Rating]]
-    ) -> dict[tuple[Cohort, Cohort], trueskill.Rating]:
+    ) -> dict[tuple[Cohort, Cohort], trueskill.Rating | ZeroDelta]:
   return {
     (from_cohort, to_cohort): mean_skill_delta(skills[from_cohort], skills[to_cohort])
     for (from_cohort, to_cohort)
@@ -289,7 +294,7 @@ def cohort_deltas(
 def rating(
     env: trueskill.TrueSkill,
     skill: Optional[trueskill.Rating],
-    delta: Optional[trueskill.Rating]) -> trueskill.Rating:
+    delta: Optional[trueskill.Rating]) -> trueskill.Rating | ZeroDelta:
   if not skill or not delta:
     return env.create_rating()
   return trueskill.Rating(mu=skill.mu + delta.mu,
