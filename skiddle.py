@@ -74,15 +74,22 @@ def transpose_scores(home_scores: Tuple[str, str, str], away_scores: Tuple[str, 
   sets = 2 if third_set_scores == {''} or third_set_scores == {'0'} else 3
   return tuple([(int(home_scores[i]), int(away_scores[i])) for i in range(sets)])
 
+def split_partners(lines: str) -> list[Player]:
+  return [Player(p) for p in sorted([partner.strip() for partner in lines.split('\n')]]
+
 def get_match(date: datetime.date, home_row: bs4.Tag, away_row: bs4.Tag) -> Optional[Match]:
   (_, _, _, home_partners, *home_sets) = [td.get_text().strip() for td in home_row.find_all('td')]
   (_, _, away_partners, *away_sets) = [td.get_text().strip() for td in away_row.find_all('td')]
+  home_partners = split_partners(home_partners)
+  away_partners = split_partners(away_partners)
+  if not (len(home_partners) == len(away_partners) == 2):
+    return None
   if not (len(home_sets) == len(away_sets) == 3):
     return None
   return Match(
       date,
-      tuple(sorted([partner.strip() for partner in home_partners.split('\n')])),
-      tuple(sorted([partner.strip() for partner in away_partners.split('\n')])),
+      (home_partners[0], home_partners[1]),
+      (away_partners[0], away_partners[1]),
       transpose_scores(
           (home_sets[0], home_sets[1], home_sets[2]), 
           (away_sets[0], away_sets[1], away_sets[2]))
@@ -93,7 +100,9 @@ def get_individual_matches(match_link: bs4.Tag, get_link: Callable[[bs4.Tag], Be
   row = get_link(match_link).find('th', string='Line').find_parent('table').find('tr', class_='printrow')
   while row:
     next = row.find_next_sibling('tr', class_='printrowalt')
-    yield get_match(date, row, next)
+    match = get_match(date, row, next)
+    if match:
+      yield match
     row = next.find_next_sibling('tr', class_='printrow')
 
 bye_pattern = re.compile('.* BYE')
