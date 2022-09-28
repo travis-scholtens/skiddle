@@ -46,7 +46,9 @@ class Match:
   away: Tuple[Player, Player]
   score: Score
 
-get_url_page: Callable[[Url], BeautifulSoup] = lambda url: BeautifulSoup(request.urlopen(url.url).read())
+def get_url_page(url: Url) -> BeautifulSoup:
+  print(f'Parsing {url.url}')
+  return BeautifulSoup(request.urlopen(url.url).read())
 
 def expand_fn(url: Url) -> Callable[[bs4.Tag], Url]:
   uri = parse.urlparse(url.url)
@@ -205,7 +207,9 @@ def update_pti() -> None:
 
 if __name__ == '__main__':
   if os.environ.get('BOOTSTRAP'):
+    print('Bootstrapping')
     bootstrap(Url(os.environ['HOME_URL']))
   else:
+    print('Updating')
     update_skills()
     update_pti()
