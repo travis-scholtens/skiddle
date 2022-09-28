@@ -4,7 +4,7 @@ from community import community_louvain #type:ignore
 from dataclasses import dataclass
 import datetime
 import dateutil
-import firebase_admin
+import firebase_admin #type:ignore
 from firebase_admin import credentials
 from firebase_admin import firestore
 from dateutil import parser
