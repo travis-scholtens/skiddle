@@ -52,6 +52,8 @@ class Match:
   away: Tuple[Player, Player]
   score: Score
 
+Cohort = NewType('Cohort', int)
+
 FirestoreClient: TypeAlias = firestore._FirestoreClient
 
 database: Callable[[Dict], FirestoreClient] = (
@@ -212,8 +214,152 @@ def read_matches(league: League, db: FirestoreClient) -> List[Match]:
   print(f'Read {len(matches)} matches')
   return matches
 
-def get_rosters() -> Dict[Division, List[Team]]:
-  pass
+def identify_cohorts(matches: list[Match]) -> dict[Player, Cohort]
+  edges = set()
+  for match in matches:
+    edges |= {tuple(sorted(ps)) for ps in itertools.product(match.home, match.away)}
+  return community_louvain.best_partition(
+      networkx.Graph(edges))
+
+def draw(match: Match) -> bool:
+  return sum([abs(h-a) for (h,a) in match.score])/len(match.score) < 2
+
+def rating_env(matches: list[Match]) -> trueskill.TrueSkill:
+  return trueskill.TrueSkill(draw_probability=len([m for m in matches if draw(m)])/len(matches))
+
+def ranks(match: Match) -> tuple[int, int]:
+  if draw(match):
+    return (0,0)
+  elif set_winner(match.score[-1]) == 0:
+    return (0,1)
+  else:
+    return (1,0)
+
+def cohort_skill(
+    env: trueskill.TrueSkill,
+    cohorts: dict[Player, Cohort],
+    matches: list[Match]
+    ) -> dict[Cohort, dict[Player, trueskill.Rating]]:
+  skills = dict[Cohort, dict[Player, trueskill.Rating]]
+  for cohort in sorted(set(cohorts.values())):
+    cohort_skill = skills[cohort] = {}
+    for match in matches:
+      if not any([cohorts.get(player) == cohort
+                  for player in (match.home + match.away)]):
+        continue
+      (home, away) = env.rate(
+          (cohort_skill.get(match.home[0], env.create_rating()),
+           cohort_skill.get(match.home[1], env.create_rating())),
+          (cohort_skill.get(match.away[0], env.create_rating()),
+           cohort_skill.get(match.away[1], env.create_rating())),
+          ranks=ranks(match))
+      cohort_skill[match.home[0]] = home[0]
+      cohort_skill[match.home[1]] = home[1]
+      cohort_skill[match.away[0]] = away[0]
+      cohort_skill[match.away[1]] = away[1]
+  return skills
+
+def mean_rating(ratings: Iterable[trueskill.Rating]) -> trueskill.Rating:
+  return trueskill.Rating(mu=sum([r.mu for r in ratings])/len(ratings),
+                          sigma=math.sqrt(sum([r.sigma * r.sigma for r in ratings])/len(ratings)))
+
+def mean_skill_delta(from_skill: Dict[Player, trueskill.Rating], to_skill: Dict[Player, trueskill.Rating]) -> trueskill.Rating:
+  if from_skill == to_skill:
+    return trueskill.Rating(mu=0, sigma=0)
+  overlap = set(from_skill) & set(to_skill)
+  if not overlap:
+    return None
+  from_mean = mean_rating([from_skill[p] for p in overlap])
+  to_mean = mean_rating([to_skill[p] for p in overlap])
+  return trueskill.Rating(mu=to_mean.mu - from_mean.mu,
+                          sigma=math.sqrt(from_mean.sigma * from_mean.sigma + to_mean.sigma * to_mean.sigma))
+
+def cohort_deltas(
+    cohorts: set[Cohort],
+    skills: dict[Cohort, dict[Player, trueskill.Rating]]
+    ) -> dict[tuple[Cohort, Cohort], trueskill.Rating]:
+  return {
+    (from_cohort, to_cohort): mean_skill_delta(skills[from_cohort], skills[to_cohort])
+    for (from_cohort, to_cohort)
+    in itertools.product(cohorts, cohorts)
+  }
+
+def rating(
+    env: trueskill.TrueSkill,
+    skill: Optional[trueskill.Rating],
+    delta: Optional[trueskill.Rating]) -> trueskill.Rating:
+  if not skill or not delta:
+    return env.create_rating()
+  return trueskill.Rating(mu=skill.mu + delta.mu,
+                          sigma=math.sqrt(skill.sigma * skill.sigma + delta.sigma * delta.sigma))
+
+def division_ratings(
+    divisions: dict[Division, set[Player]],
+    matches: list[Match]) -> dict[Division, dict[Player, trueskill.Rating]]:
+  cohorts = identify_cohorts(matches)
+  env = rating_env(matches)
+  skills = cohort_skill(env, cohorts, matches)
+  deltas = cohort_deltas(set(cohorts.values()), skills)
+  ratings: dict[Division, dict[Player, trueskill.Rating]] = {}
+  for (division, players) in divisions.items():
+    target_cohort = main_cohort(players)
+    ratings[division] = {
+        player: rating(
+            env,
+            skills.get(cohorts.get(player), {}).get(player),
+            deltas.get((cohorts.get(player), main_cohort)))
+    }
+  return ratings
+
+def read_division(team: BeautifulSoup) -> Division:
+  return Division(next(team
+      .find('div', class_='team_nav')
+      .stripped_strings))
+
+def read_team_and_club_name(team: BeautifulSoup) -> Tuple[str, str]:
+  ss = team.find(id='home_right').stripped_strings
+  next(ss)
+  return (next(ss), next(ss))
+
+def read_players(team: BeautifulSoup, name: str) -> Generator[Player, None, None]:
+  for tr in team.find('th', string=lambda s: name in s).find_parent('table').find_all('tr'):
+    if tr.find('th'):
+      if next(tr.stripped_strings) not in (name, 'Captains', 'Players', 'Players Also Subbing for Other Teams'):
+        break
+      else:
+        continue
+    ss = tr.stripped_strings
+    while ss:
+      s = next(ss)
+      if s not in '✔12345' and s != 'Captain':
+        yield Player(s)
+        break
+
+def get_teams(links: list[bs4.Tag],
+              get_link: Callable[[bs4.Tag], BeautifulSoup]
+             ) -> List[Tuple[Division, Team]]:
+  return [
+      (lambda page:
+                      (read_division(page),
+                      (lambda team_name, club_name:
+                        Team(team_name, club_name, list(read_players(page, team_name)))
+                      )(*read_team_and_club_name(page)))
+                  )(get_link(link))
+  for link in links]
+
+def get_rosters(home: BeautifulSoup,
+                get_link: Callable[[bs4.Tag], BeautifulSoup]
+               ) -> Dict[Division, List[Team]]:
+  return (lambda teams: {
+              division: [team for (d, team) in teams if d == division]
+              for division in {division for (division, _) in teams}
+          })(get_teams([d.find('a') for d in home.find_all('div', class_='div_list_teams_option')], get_link))
+
+def players(teams: list[Team]) -> set[Player]:
+  ps = set()
+  for team in teams:
+    ps |= set(team.roster)
+  return ps
 
 def bootstrap(home: BeautifulSoup,
               league: League,
@@ -242,7 +388,11 @@ if __name__ == '__main__':
     bootstrap(home, league, get_link, db)
   else:
     print('Setting initial skill')
-    _ = read_matches(league, db)
+    matches = read_matches(league, db)
+    rosters = get_rosters(home, get_link)
+    ratings = division_ratings(
+        {division: players(teams) for (division, teams) in rosters.items()},
+        matches)
     print('Updating')
     update_skills()
     update_pti()
