@@ -101,10 +101,10 @@ def get_schedule_matches(schedule: BeautifulSoup) -> Generator[List[Match], None
       continue
     yield list(get_individual_matches(items[0].find('a')))
 
-def get_team_matches(team: BeautifulSoup, get_link: Callable[[bs4.Tag], BeautifulSoup]])) -> List[Match]:
+def get_team_matches(team: BeautifulSoup, get_link: Callable[[bs4.Tag], BeautifulSoup]]) -> List[Match]:
   return sum(get_schedule_matches(get_link(team.find('a', string='Show Schedule'))), []))
 
-def get_division_matches(division: BeautifulSoup, get_link: Callable[[bs4.Tag], BeautifulSoup]])) -> List[Match]:
+def get_division_matches(division: BeautifulSoup, get_link: Callable[[bs4.Tag], BeautifulSoup]]) -> List[Match]:
   return sum([get_team_matches(get_link(a)) for a in division.find('th', string='TeamName').find_parent('table').find_all('a', href=lambda s: s != '#')], [])
 
 def get_matches(paths: Iterable[bs4.Tag], get_link: Callable[[bs4.Tag], BeautifulSoup]]) -> List[Match]:
