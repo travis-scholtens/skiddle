@@ -1,12 +1,15 @@
+import bs4 #type:ignore
 from bs4 import BeautifulSoup #type:ignore
 from community import community_louvain #type:ignore
-from dataclasses import dataclass 
+from dataclasses import dataclass
+import datetime
 import itertools
 import networkx #type:ignore
 import os
+import re
 import trueskill #type:ignore
 from typing import *
-from urllib import parse, request, ParseResult
+from urllib import parse, request
 
 @dataclass
 class Url:
@@ -44,7 +47,7 @@ class Match:
 get_url_page: Callable[[Url], BeautifulSoup] = lambda url: BeautifulSoup(request.urlopen(url.url).read())
 
 def expand_fn(url: Url) -> Callable[[bs4.Tag], Url]:
-  uri: ParseResult = parse.urlparse(url.url)
+  uri = parse.urlparse(url.url)
   host = f'{uri.scheme}://{uri.netloc}'
   return lambda link: Url(host + link['href'])
 
