@@ -241,7 +241,7 @@ def cohort_skill(
     cohorts: dict[Player, Cohort],
     matches: list[Match]
     ) -> dict[Cohort, dict[Player, trueskill.Rating]]:
-  skills = dict[Cohort, dict[Player, trueskill.Rating]]
+  skills = Dict[Cohort, Dict[Player, trueskill.Rating]]
   for cohort in sorted(set(cohorts.values())):
     skills[cohort] = {}
     cohort_skill = skills[cohort]
