@@ -75,7 +75,7 @@ def transpose_scores(home_scores: Tuple[str, str, str], away_scores: Tuple[str, 
   return tuple([(int(home_scores[i]), int(away_scores[i])) for i in range(sets)])
 
 def split_partners(lines: str) -> list[Player]:
-  return [Player(p) for p in sorted([partner.strip() for partner in lines.split('\n')]]
+  return [Player(p) for p in sorted([partner.strip() for partner in lines.split('\n')])]
 
 def get_match(date: datetime.date, home_row: bs4.Tag, away_row: bs4.Tag) -> Optional[Match]:
   (_, _, _, home_partners, *home_sets) = [td.get_text().strip() for td in home_row.find_all('td')]
