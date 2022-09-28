@@ -346,17 +346,16 @@ def read_players(team: BeautifulSoup, name: str) -> Generator[Player, None, None
         yield Player(s)
         break
 
+def get_team(page: BeautifulSoup) -> tuple[Division, Team]:
+  (name, club) = read_team_and_club_name(page)
+  players = list(read_players(page, name))
+  return (read_division(page),
+          Team(name, club, players))
+
 def get_teams(links: list[bs4.Tag],
               get_link: Callable[[bs4.Tag], BeautifulSoup]
              ) -> List[Tuple[Division, Team]]:
-  return [
-      (lambda page:
-                      (read_division(page),
-                      (lambda team_name, club_name:
-                        Team(team_name, club_name, list(read_players(page, team_name)))
-                      )(*read_team_and_club_name(page)))
-                  )(get_link(link))
-  for link in links]
+  return [get_team(get_link(link)) for link in links]
 
 def get_rosters(home: BeautifulSoup,
                 get_link: Callable[[bs4.Tag], BeautifulSoup]
