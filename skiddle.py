@@ -205,6 +205,13 @@ def write_matches(matches: List[Match], league: League, db: FirestoreClient) -> 
   })
   print(f'Wrote {len(matches)} matches')
 
+def read_matches(league: League, db: FirestoreClient) -> List[Match]:
+  matches = [eval(match) for match in
+      db.collection('matches').document(league).get().get('archive')
+  ]
+  print(f'Read {len(matches)} matches')
+  return matches
+
 def get_rosters() -> Dict[Division, List[Team]]:
   pass
 
@@ -234,6 +241,8 @@ if __name__ == '__main__':
     print('Bootstrapping')
     bootstrap(home, league, get_link, db)
   else:
+    print('Setting initial skill')
+    _ = read_matches(league, db)
     print('Updating')
     update_skills()
     update_pti()
