@@ -199,7 +199,7 @@ archive_matches: Callable[[BeautifulSoup, Callable[[bs4.Tag], BeautifulSoup]], L
       ))
 )
 
-def write_matches(matches: List[Match], league: League, db: FirebaseClient) -> None:
+def write_matches(matches: List[Match], league: League, db: FirestoreClient) -> None:
   db.collections('matches').document(league).set([
       repr(match) for match in matches
   ])
@@ -210,7 +210,7 @@ def get_rosters() -> Dict[Division, List[Team]]:
 def bootstrap(home: BeautifulSoup,
               league: League,
               get_link: Callable[[bs4.Tag], BeautifulSoup],
-              db: FirebaseClient) -> None:
+              db: FirestoreClient) -> None:
    write_matches(
        archive_matches(get_link(home.find('a', string='Archives')),
                        get_link),
