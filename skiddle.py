@@ -250,10 +250,10 @@ def cohort_skill(
                   for player in (match.home + match.away)]):
         continue
       (home, away) = env.rate(
-          (cohort_skill.get(match.home[0], env.create_rating()),
-           cohort_skill.get(match.home[1], env.create_rating())),
-          (cohort_skill.get(match.away[0], env.create_rating()),
-           cohort_skill.get(match.away[1], env.create_rating())),
+          [(cohort_skill.get(match.home[0], env.create_rating()),
+            cohort_skill.get(match.home[1], env.create_rating())),
+           (cohort_skill.get(match.away[0], env.create_rating()),
+            cohort_skill.get(match.away[1], env.create_rating()))],
           ranks=ranks(match))
       cohort_skill[match.home[0]] = home[0]
       cohort_skill[match.home[1]] = home[1]
