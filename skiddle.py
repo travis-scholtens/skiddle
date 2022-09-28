@@ -35,7 +35,7 @@ class Team:
 
 SetResult = Tuple[int, int]
 
-Score = Union[Tuple[SetResult, SetResult], Tuple[SetResult, SetResult, SetResult]]
+Score = Tuple[SetResult, SetResult] | Tuple[SetResult, SetResult, SetResult]
 
 @dataclass
 class Match:
