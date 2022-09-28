@@ -3,12 +3,13 @@ from bs4 import BeautifulSoup #type:ignore
 from community import community_louvain #type:ignore
 from dataclasses import dataclass
 import datetime
+import dateutil
 import itertools
 import networkx #type:ignore
 import os
 import re
 import trueskill #type:ignore
-from typing import Callable, Dict, Generator, Iterable, List, Tuple, Union
+from typing import Callable, Dict, Generator, Iterable, List, Optional, Tuple, Union
 from urllib import parse, request
 
 @dataclass
@@ -87,9 +88,9 @@ def get_match(date: datetime.date, home_row: bs4.Tag, away_row: bs4.Tag) -> Opti
           (away_sets[0], away_sets[1], away_sets[2]))
   )
 
-def get_individual_matches(match_link: bs4.Tag) -> Generator[List[Match], None, None]:
+def get_individual_matches(match_link: bs4.Tag, get_link: Callable[[bs4.Tag], BeautifulSoup]) -> Generator[List[Match], None, None]:
   date = dateutil.parser.parse(match_link.string).date()
-  row = get_url_page(expand(match_link['href'])).find('th', string='Line').find_parent('table').find('tr', class_='printrow')
+  row = get_link(match_link).find('th', string='Line').find_parent('table').find('tr', class_='printrow')
   while row:
     next = row.find_next_sibling('tr', class_='printrowalt')
     yield get_match(date, row, next)
@@ -97,7 +98,7 @@ def get_individual_matches(match_link: bs4.Tag) -> Generator[List[Match], None, 
 
 bye_pattern = re.compile('.* BYE')
 
-def get_schedule_matches(schedule: BeautifulSoup) -> Generator[List[Match], None, None]:
+def get_schedule_matches(schedule: BeautifulSoup, get_link: Callable[[bs4.Tag], BeautifulSoup]) -> Generator[List[Match], None, None]:
   for tr in schedule.find('th', string='Date').find_parent('table').find_all('tr'):
     if tr.find('th'):
       continue
@@ -106,10 +107,10 @@ def get_schedule_matches(schedule: BeautifulSoup) -> Generator[List[Match], None
       continue
     if items[0].find('a', string=bye_pattern):
       continue
-    yield list(get_individual_matches(items[0].find('a')))
+    yield list(get_individual_matches(items[0].find('a'), get_link))
 
 def get_team_matches(team: BeautifulSoup, get_link: Callable[[bs4.Tag], BeautifulSoup]) -> List[Match]:
-  return sum(get_schedule_matches(get_link(team.find('a', string='Show Schedule'))), [])
+  return sum(get_schedule_matches(get_link(team.find('a', string='Show Schedule')), get_link), [])
 
 def get_division_matches(division: BeautifulSoup, get_link: Callable[[bs4.Tag], BeautifulSoup]) -> List[Match]:
   return sum([get_team_matches(get_link(a)) for a in division.find('th', string='TeamName').find_parent('table').find_all('a', href=lambda s: s != '#')], [])
