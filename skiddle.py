@@ -247,7 +247,7 @@ def cohort_skill(
   for cohort in sorted(set(cohorts.values())):
     cohort_skill: dict[Player, trueskill.Rating] = {}
     skills[cohort] = cohort_skill
-    for match in sorted(matches, key=lambda m: m.date):
+    for match in sorted(matches, key=lambda m: (m.date, m.home, m.away)):
       if not any([cohorts.get(player) == cohort
                   for player in (match.home + match.away)]):
         continue
@@ -456,7 +456,7 @@ def update_skills(
     division_matches: dict[Division, list[Match]]) -> None:
   for (division, matches) in division_matches.items():
     skill = division_ratings[division]
-    for match in sorted(matches, key=lambda m: m.date):
+    for match in sorted(matches, key=lambda m: (m.date, m.home, m.away)):
       (home, away) = env.rate(
           [(skill.get(match.home[0], env.create_rating()),
             skill.get(match.home[1], env.create_rating())),
@@ -504,8 +504,6 @@ def update_ranks_doc(doc: DocumentReference, ranks: dict) -> None:
   previous = data.to_dict() if data.exists else {}
   ts = int(time() * 1000)
   if sorted_names(ranks['skill']) != sorted_names(previous.get('skill', {})):
-    print(sorted_names(ranks['skill']))
-    print(sorted_names(previous.get('skill', {})))
     ranks['previous_skill'] = previous['skill']
     ranks['previous_skill_time'] = ts
   if sorted_names(ranks['pti']) != sorted_names(previous.get('pti', {})):
