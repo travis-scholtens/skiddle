@@ -496,7 +496,7 @@ def populate_ranks(env: trueskill.TrueSkill,
 
 def sorted_names(ranks: dict) -> list:
   return [item[0] for item in
-          sorted([item for item in ranks if item[1] is not None],
+          sorted([item for item in ranks.items() if item[1] is not None],
                  key=lambda item: item[1])]
 
 def update_ranks_doc(doc: DocumentReference, ranks: dict) -> None:
