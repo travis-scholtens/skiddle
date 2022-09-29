@@ -8,6 +8,7 @@ import firebase_admin #type:ignore
 from firebase_admin import credentials
 from firebase_admin import firestore
 from dateutil import parser
+from google.cloud.firestore import DocumentReference 
 import itertools
 import json
 import math
@@ -492,6 +493,23 @@ def populate_ranks(env: trueskill.TrueSkill,
       pti_ranks[name] = None
   return { 'name': team.name, 'skill': skill_ranks, 'pti': pti_ranks }
 
+def sorted_names(ranks: dict) -> list:
+  return [item[0] for item in
+          sorted([item for item in ranks if item[1] is not None],
+                 key=lambda item: item[1])]
+
+def update_ranks_doc(doc: DocumentReference, ranks: dict) -> None:
+  previous = doc.get().to_dict() if doc.exists else {}
+  ts = int(time() * 1000)
+  if sorted_names(ranks['skill']) != sorted_names(previous.get('skill', {})):
+    ranks['previous_skill'] = previous['skill']
+    ranks['previous_skill_time'] = ts
+  if sorted_names(ranks['pti']) != sorted_names(previous.get('pti', {})):
+    ranks['previous_pti'] = previous['pti']
+    ranks['previous_pti_time'] = ts
+  ranks['updated_time'] = ts
+  doc.set(ranks)
+
 def update_ranks(
     env: trueskill.TrueSkill,
     league: League,
@@ -523,17 +541,15 @@ def update_ranks(
       abm = ab.match(team.name)
       if abm:
         abbrs[team.name] = abbrs[abm[1]] + abm[2].lower()
-      (db.collection('rankings')
-       .document(league)
-       .collection('divisions')
-       .document(dabbr)
-       .collection('teams')
-       .document(abbrs[team.name])
-       .set(populate_ranks(
-            env,
-            team,
-            ratings[division],
-            pti)))
+      update_ranks_doc(
+          db.collection('rankings')
+              .document(league)
+              .collection('divisions')
+              .document(dabbr)
+              .collection('teams')
+              .document(abbrs[team.name]),
+          populate_ranks(
+              env, team, ratings[division], pti))
   print(f'Wrote ratings for {sum([len(d) for d in rosters.values()])} teams')
 
 if __name__ == '__main__':
