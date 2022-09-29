@@ -8,13 +8,14 @@ import firebase_admin #type:ignore
 from firebase_admin import credentials
 from firebase_admin import firestore
 from dateutil import parser
-from google.cloud.firestore import DocumentReference 
+from google.cloud.firestore import DocumentReference #type:ignore
 import itertools
 import json
 import math
 import networkx #type:ignore
 import os
 import re
+from time import time
 import trueskill #type:ignore
 from typing import Callable, Dict, Generator, Iterable, List, NewType, Optional, Tuple, TypeAlias, Union
 from urllib import parse, request
