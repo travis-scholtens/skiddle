@@ -30,7 +30,7 @@ League = NewType('League', str)
 class Division:
   name: str
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, order=True)
 class Player:
   name: str
 
@@ -48,7 +48,7 @@ SetResult = Tuple[int, int]
 
 Score = Tuple # 2 or 3 SetResults
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, order=True)
 class Match:
   date: datetime.date
   home: Tuple[Player, Player]
@@ -247,7 +247,7 @@ def cohort_skill(
   for cohort in sorted(set(cohorts.values())):
     cohort_skill: dict[Player, trueskill.Rating] = {}
     skills[cohort] = cohort_skill
-    for match in sorted(matches, key=lambda m: (m.date, m.home, m.away)):
+    for match in sorted(matches):
       if not any([cohorts.get(player) == cohort
                   for player in (match.home + match.away)]):
         continue
@@ -456,7 +456,7 @@ def update_skills(
     division_matches: dict[Division, list[Match]]) -> None:
   for (division, matches) in division_matches.items():
     skill = division_ratings[division]
-    for match in sorted(matches, key=lambda m: (m.date, m.home, m.away)):
+    for match in sorted(matches):
       (home, away) = env.rate(
           [(skill.get(match.home[0], env.create_rating()),
             skill.get(match.home[1], env.create_rating())),
