@@ -18,6 +18,7 @@ import random
 import re
 from time import time
 import trueskill #type:ignore
+import trueskillthroughtime as ttt #type:ignore
 from typing import Callable, Dict, Generator, Iterable, List, NewType, Optional, Tuple, TypeAlias, Union
 from urllib import parse, request
 
@@ -472,6 +473,20 @@ def update_skills(
       skill[match.away[1]] = away[1]
   return
 
+def through_time(matches: list[Match]) -> dict[Player, list[tuple[int, ttt.Gaussian]]]:
+  teams = []
+  res = []
+  t = []
+  for match in matches:
+    teams.append((match.home, match.away))
+    res.append(reversed(ranks(match))
+    t.append(match.date.toordinal())
+  history = ttt.History(teams, results=res, times=t,
+                        sigma=1.6, gamma=0.036,
+                        draw_p=len([m for m in matches if draw(m)])/len(matches))
+  history.convergence(epsilon=0.01, iterations=10)
+  return history.learning_curves()
+
 def get_pti(home: BeautifulSoup,
             get_link: Callable[[bs4.Tag], BeautifulSoup],
            ) -> dict[Player, float]:
@@ -486,16 +501,20 @@ def get_pti(home: BeautifulSoup,
 def populate_ranks(env: trueskill.TrueSkill,
                    team: Team,
                    skill: dict[Player, trueskill.Rating],
+                   learning_curves: dict[Player, list[tuple[float, ttt.Gaussian]]].
                    pti: dict[Player, float]) -> dict:
   skill_ranks: dict[str, Optional[float]] = {n.name: env.expose(skill[n]) for n in team.roster if n in skill}
+  learning_ranks: dict[str, Optional[float]] = {n.name: learning_curves[n][-1][1].mu - 3*learning_curves[n][-1][1].sigma for n in team.roster if n in learning_curves}
   pti_ranks: dict[str, Optional[float]] = {n.name: pti[n] for n in team.roster if n in pti}
   for player in team.roster:
     name = player.name
     if name not in skill_ranks:
       skill_ranks[name] = None
+    if name not in learning_ranks:
+      learning_ranks[name] = None
     if name not in pti_ranks:
       pti_ranks[name] = None
-  return { 'name': team.name, 'skill': skill_ranks, 'pti': pti_ranks }
+  return { 'name': team.name, 'skill': skill_ranks, 'tskill': learning_ranks, 'pti': pti_ranks }
 
 def sorted_names(ranks: dict) -> list:
   return [item[0] for item in
@@ -506,18 +525,13 @@ def update_ranks_doc(doc: DocumentReference, ranks: dict) -> None:
   data = doc.get()
   previous = data.to_dict() if data.exists else {}
   ts = int(time() * 1000)
-  if sorted_names(ranks['skill']) != sorted_names(previous.get('skill', {})):
-    ranks['previous_skill'] = previous['skill']
-    ranks['previous_skill_time'] = ts
-  elif 'previous_skill' in previous:
-    ranks['previous_skill'] = previous['previous_skill']
-    ranks['previous_skill_time'] = previous['previous_skill_time']
-  if sorted_names(ranks['pti']) != sorted_names(previous.get('pti', {})):
-    ranks['previous_pti'] = previous['pti']
-    ranks['previous_pti_time'] = ts
-  elif 'previous_pti' in previous:
-    ranks['previous_pti'] = previous['previous_pti']
-    ranks['previous_pti_time'] = previous['previous_pti_time']
+  for key in ('skill', 'tskill', 'pti'):
+    if sorted_names(ranks[key]) != sorted_names(previous.get(key, {})):
+      ranks['previous_' + key] = previous[key]
+      ranks['previous_' + key + '_time'] = ts
+    elif ('previous_' + key) in previous:
+      ranks['previous_' + key] = previous['previous_' + key]
+      ranks['previous_' + key + '_time'] = previous['previous_' + key + '_time']
   ranks['updated_time'] = ts
   doc.set(ranks)
 
@@ -526,6 +540,7 @@ def update_ranks(
     league: League,
     rosters: Dict[Division, List[Team]],
     ratings: dict[Division, dict[Player, trueskill.Rating]],
+    learning_curves: dict[Player, list[tuple[float, ttt.Gaussian]]].
     pti: dict[Player, float],
     db: FirestoreClient) -> None:
   ab = re.compile('^(.*) ([A-D1-3])$')
@@ -560,7 +575,7 @@ def update_ranks(
               .collection('teams')
               .document(abbrs[team.name]),
           populate_ranks(
-              env, team, ratings[division], pti))
+              env, team, ratings[division], learning_curves, pti))
   print(f'Wrote ratings for {sum([len(d) for d in rosters.values()])} teams')
 
 if __name__ == '__main__':
@@ -579,8 +594,9 @@ if __name__ == '__main__':
     (env, ratings) = division_ratings(
         {division: players(teams) for (division, teams) in rosters.items()},
         matches)
-    print(ratings.keys())
     print('Updating')
-    update_skills(env, ratings, new_matches(home, get_link))
+    current_matches = new_matches(home, get_link)
+    update_skills(env, ratings, current_matches)
+    learning_curves = through_time(sum([matches] + current_matches.values(), []))
     pti = get_pti(home, get_link)
-    update_ranks(env, league, rosters, ratings, pti, db)
+    update_ranks(env, league, rosters, ratings, learning_curves, pti, db)
