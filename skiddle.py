@@ -501,7 +501,7 @@ def get_pti(home: BeautifulSoup,
 def populate_ranks(env: trueskill.TrueSkill,
                    team: Team,
                    skill: dict[Player, trueskill.Rating],
-                   learning_curves: dict[Player, list[tuple[float, ttt.Gaussian]]].
+                   learning_curves: dict[Player, list[tuple[float, ttt.Gaussian]]],
                    pti: dict[Player, float]) -> dict:
   skill_ranks: dict[str, Optional[float]] = {n.name: env.expose(skill[n]) for n in team.roster if n in skill}
   learning_ranks: dict[str, Optional[float]] = {n.name: learning_curves[n][-1][1].mu - 3*learning_curves[n][-1][1].sigma for n in team.roster if n in learning_curves}
