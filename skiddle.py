@@ -675,7 +675,7 @@ if __name__ == '__main__':
     (env, ratings) = division_ratings(
         {division: players(teams) for (division, teams) in rosters.items()},
         matches)
-    t_ratings = division_ratings(
+    t_ratings = division_through_time(
         {division: players(teams) for (division, teams) in rosters.items()},
         matches)
     print('Updating')
