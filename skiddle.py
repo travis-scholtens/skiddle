@@ -473,6 +473,82 @@ def update_skills(
       skill[match.away[1]] = away[1]
   return
 
+def cohort_tskill(
+    cohorts: dict[Player, Cohort],
+    matches: list[Match]
+    ) -> dict[Cohort, dict[Player, ttt.Gaussian]]:
+  skills: Dict[Cohort, Dict[Player, ttt.Gaussian]] = {}
+  for cohort in sorted(set(cohorts.values())):
+    teams = []
+    res = []
+    t = []
+    for match in matches:
+      if not any([cohorts.get(player) == cohort
+                  for player in (match.home + match.away)]):
+        continue
+      teams.append((match.home, match.away))
+      res.append(list(reversed(ranks(match))))
+      t.append(match.date.toordinal())
+      
+    history = ttt.History(teams, results=res, times=t,
+                          sigma=1.6, gamma=0.036,
+                          p_draw=len([m for m in matches if draw(m)])/len(matches))
+    history.convergence(epsilon=0.01, iterations=10)
+    skills[cohort] = {
+      name: ratings[-1][1]
+    for (name, ratings) in history.learning_curves().items()}
+  return skills
+
+def mean_t_rating(ratings: list[ttt.Gaussian]) -> ttt.Gaussian:
+  return ttt.Gaussian(mu=sum([r.mu for r in ratings])/len(ratings),
+                      sigma=math.sqrt(sum([r.sigma * r.sigma for r in ratings])/len(ratings)))
+
+def mean_skill_tdelta(from_skill: Dict[Player, ttt.Gaussian], to_skill: Dict[Player, ttt.Gaussian]) -> ttt.Gaussian | ZeroDelta:
+  if from_skill == to_skill:
+    return ZeroDelta()
+  overlap = set(from_skill) & set(to_skill)
+  if not overlap:
+    return None
+  from_mean = mean_t_rating([from_skill[p] for p in overlap])
+  to_mean = mean_t_rating([to_skill[p] for p in overlap])
+  return ttt.Gaussian(mu=to_mean.mu - from_mean.mu,
+                      sigma=math.sqrt(from_mean.sigma * from_mean.sigma + to_mean.sigma * to_mean.sigma))
+
+def cohort_tdeltas(
+    cohorts: set[Cohort],
+    skills: dict[Cohort, dict[Player, ttt.Gaussian]]
+    ) -> dict[tuple[Cohort, Cohort], ttt.Gaussian | ZeroDelta]:
+  return {
+    (from_cohort, to_cohort): mean_skill_tdelta(skills[from_cohort], skills[to_cohort])
+    for (from_cohort, to_cohort)
+    in itertools.product(cohorts, cohorts)
+  }
+
+def t_rating(
+    skill: Optional[ttt.Gaussian],
+    delta: Optional[ttt.Gaussian]) -> ttt.Gaussian | ZeroDelta:
+  if not skill or not delta:
+    ttt.Gaussian()
+  return ttt.Gaussian(mu=skill.mu + delta.mu,
+                      sigma=math.sqrt(skill.sigma * skill.sigma + delta.sigma * delta.sigma))
+
+def division_through_time(
+    divisions: dict[Division, set[Player]],
+    matches: list[Match]) -> dict[Division, dict[Player, ttt.Gaussian]]:
+  cohorts = identify_cohorts(matches)
+  skills = cohort_tskill(cohorts, matches)
+  deltas = cohort_tdeltas(set(cohorts.values()), skills)
+  ratings: dict[Division, dict[Player, trueskill.Rating]] = {}
+  for (division, players) in divisions.items():
+    target_cohort = main_cohort(cohorts, players)
+    ratings[division] = {
+        player: t_rating(
+            skills[cohorts[player]].get(player),
+            deltas.get((cohorts[player], target_cohort)))
+        for player in players if player in cohorts
+    }
+  return ratings
+
 def through_time(matches: list[Match]) -> dict[Player, list[tuple[int, ttt.Gaussian]]]:
   teams = []
   res = []
@@ -502,9 +578,11 @@ def populate_ranks(env: trueskill.TrueSkill,
                    team: Team,
                    skill: dict[Player, trueskill.Rating],
                    learning_curves: dict[Player, list[tuple[int, ttt.Gaussian]]],
+                   tskill: dict[Player, ttt.Gaussian],
                    pti: dict[Player, float]) -> dict:
   skill_ranks: dict[str, Optional[float]] = {n.name: env.expose(skill[n]) for n in team.roster if n in skill}
   learning_ranks: dict[str, Optional[float]] = {n.name: learning_curves[n][-1][1].mu - 3*learning_curves[n][-1][1].sigma for n in team.roster if n in learning_curves}
+  cohort_learning_ranks: dict[str, Optional[float]] = {n.name: tskill[n].mu - 3*tskill[n].sigma for n in team.roster if n in tskill}
   pti_ranks: dict[str, Optional[float]] = {n.name: pti[n] for n in team.roster if n in pti}
   for player in team.roster:
     name = player.name
@@ -512,9 +590,11 @@ def populate_ranks(env: trueskill.TrueSkill,
       skill_ranks[name] = None
     if name not in learning_ranks:
       learning_ranks[name] = None
+    if name not in cohort_learning_ranks:
+      cohort_learning_ranks[name] = None
     if name not in pti_ranks:
       pti_ranks[name] = None
-  return { 'name': team.name, 'skill': skill_ranks, 'tskill': learning_ranks, 'pti': pti_ranks }
+  return { 'name': team.name, 'skill': skill_ranks, 'tskill': learning_ranks, 'divtskill': cohort_learning_ranks, 'pti': pti_ranks }
 
 def sorted_names(ranks: dict) -> list:
   return [item[0] for item in
@@ -525,7 +605,7 @@ def update_ranks_doc(doc: DocumentReference, ranks: dict) -> None:
   data = doc.get()
   previous = data.to_dict() if data.exists else {}
   ts = int(time() * 1000)
-  for key in ('skill', 'tskill', 'pti'):
+  for key in ('skill', 'tskill', 'divtskill', 'pti'):
     if key in previous and sorted_names(ranks[key]) != sorted_names(previous[key]):
       ranks['previous_' + key] = previous[key]
       ranks['previous_' + key + '_time'] = ts
@@ -541,6 +621,7 @@ def update_ranks(
     rosters: Dict[Division, List[Team]],
     ratings: dict[Division, dict[Player, trueskill.Rating]],
     learning_curves: dict[Player, list[tuple[int, ttt.Gaussian]]],
+    t_ratings: dict[Division, dict[Player, ttt.Gaussian]],
     pti: dict[Player, float],
     db: FirestoreClient) -> None:
   ab = re.compile('^(.*) ([A-D1-3])$')
@@ -575,7 +656,7 @@ def update_ranks(
               .collection('teams')
               .document(abbrs[team.name]),
           populate_ranks(
-              env, team, ratings[division], learning_curves, pti))
+              env, team, ratings[division], learning_curves, t_ratings[division], pti))
   print(f'Wrote ratings for {sum([len(d) for d in rosters.values()])} teams')
 
 if __name__ == '__main__':
@@ -594,9 +675,12 @@ if __name__ == '__main__':
     (env, ratings) = division_ratings(
         {division: players(teams) for (division, teams) in rosters.items()},
         matches)
+    t_ratings = division_ratings(
+        {division: players(teams) for (division, teams) in rosters.items()},
+        matches)
     print('Updating')
     current_matches = new_matches(home, get_link)
     update_skills(env, ratings, current_matches)
     learning_curves = through_time(sum([matches] + [list(ms) for ms in current_matches.values()], []))
     pti = get_pti(home, get_link)
-    update_ranks(env, league, rosters, ratings, learning_curves, pti, db)
+    update_ranks(env, league, rosters, ratings, learning_curves, t_ratings, pti, db)
