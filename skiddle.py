@@ -538,7 +538,7 @@ def division_through_time(
   cohorts = identify_cohorts(matches)
   skills = cohort_tskill(cohorts, matches)
   deltas = cohort_tdeltas(set(cohorts.values()), skills)
-  ratings: dict[Division, dict[Player, trueskill.Rating]] = {}
+  ratings: dict[Division, dict[Player, ttt.Gaussian]] = {}
   for (division, players) in divisions.items():
     target_cohort = main_cohort(cohorts, players)
     ratings[division] = {
@@ -547,6 +547,27 @@ def division_through_time(
             deltas.get((cohorts[player], target_cohort)))
         for player in players if player in cohorts
     }
+  return ratings
+
+def updated_tskills(
+    division_ratings: dict[Division, dict[Player, ttt.Gaussian]],
+    division_matches: dict[Division, list[Match]]) -> dict[Division, dict[Player, ttt.Gaussian]]:
+  ratings: dict[Division, dict[Player, ttt.Gaussian]] = {}
+  for (division, matches) in division_matches.items():
+    skill = division_ratings[division]
+    teams = []
+    res = []
+    t = []
+    for match in matches:
+      teams.append((match.home, match.away))
+      res.append(list(reversed(ranks(match))))
+      t.append(match.date.toordinal())
+    history = ttt.History(teams, results=res, times=t,
+                          priors=division_ratings[division],
+                          sigma=1.6, gamma=0.036,
+                          p_draw=len([m for m in matches if draw(m)])/len(matches))
+    history.convergence(epsilon=0.01, iterations=10)
+    ratings[division] = {name: item[-1][1] for (name, item) in history.learning_curves().items()}
   return ratings
 
 def through_time(matches: list[Match]) -> dict[Player, list[tuple[int, ttt.Gaussian]]]:
@@ -682,5 +703,6 @@ if __name__ == '__main__':
     current_matches = new_matches(home, get_link)
     update_skills(env, ratings, current_matches)
     learning_curves = through_time(sum([matches] + [list(ms) for ms in current_matches.values()], []))
+    t_ratings = updated_tskills(t_ratings, current_matches)
     pti = get_pti(home, get_link)
     update_ranks(env, league, rosters, ratings, learning_curves, t_ratings, pti, db)
