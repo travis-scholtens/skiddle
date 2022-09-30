@@ -526,7 +526,7 @@ def update_ranks_doc(doc: DocumentReference, ranks: dict) -> None:
   previous = data.to_dict() if data.exists else {}
   ts = int(time() * 1000)
   for key in ('skill', 'tskill', 'pti'):
-    if sorted_names(ranks[key]) != sorted_names(previous.get(key, {})):
+    if key in previous and sorted_names(ranks[key]) != sorted_names(previous[key]):
       ranks['previous_' + key] = previous[key]
       ranks['previous_' + key + '_time'] = ts
     elif ('previous_' + key) in previous:
