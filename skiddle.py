@@ -552,10 +552,11 @@ def division_through_time(
 def updated_tskills(
     division_ratings: dict[Division, dict[Player, ttt.Gaussian]],
     division_matches: dict[Division, list[Match]]) -> dict[Division, dict[Player, ttt.Gaussian]]:
-  if not matches:
-    return division_ratings
   ratings: dict[Division, dict[Player, ttt.Gaussian]] = {}
   for (division, matches) in division_matches.items():
+    if not matches:
+      ratings[division] = division_ratings[division]
+      continue
     skill = division_ratings[division]
     teams = []
     res = []
