@@ -597,6 +597,6 @@ if __name__ == '__main__':
     print('Updating')
     current_matches = new_matches(home, get_link)
     update_skills(env, ratings, current_matches)
-    learning_curves = through_time(sum([matches] + current_matches.values(), []))
+    learning_curves = through_time(sum([matches] + [list(ms) for ms in current_matches.values()], []))
     pti = get_pti(home, get_link)
     update_ranks(env, league, rosters, ratings, learning_curves, pti, db)
