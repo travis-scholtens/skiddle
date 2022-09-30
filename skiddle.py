@@ -528,7 +528,7 @@ def t_rating(
     skill: Optional[ttt.Gaussian],
     delta: Optional[ttt.Gaussian]) -> ttt.Gaussian | ZeroDelta:
   if not skill or not delta:
-    ttt.Gaussian()
+    return ttt.Gaussian()
   return ttt.Gaussian(mu=skill.mu + delta.mu,
                       sigma=math.sqrt(skill.sigma * skill.sigma + delta.sigma * delta.sigma))
 
