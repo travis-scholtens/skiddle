@@ -483,7 +483,7 @@ def through_time(matches: list[Match]) -> dict[Player, list[tuple[int, ttt.Gauss
     t.append(match.date.toordinal())
   history = ttt.History(teams, results=res, times=t,
                         sigma=1.6, gamma=0.036,
-                        draw_p=len([m for m in matches if draw(m)])/len(matches))
+                        p_draw=len([m for m in matches if draw(m)])/len(matches))
   history.convergence(epsilon=0.01, iterations=10)
   return history.learning_curves()
 
