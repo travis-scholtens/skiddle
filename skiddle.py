@@ -540,7 +540,7 @@ def update_ranks(
     league: League,
     rosters: Dict[Division, List[Team]],
     ratings: dict[Division, dict[Player, trueskill.Rating]],
-    learning_curves: dict[Player, list[tuple[float, ttt.Gaussian]]].
+    learning_curves: dict[Player, list[tuple[float, ttt.Gaussian]]],
     pti: dict[Player, float],
     db: FirestoreClient) -> None:
   ab = re.compile('^(.*) ([A-D1-3])$')
