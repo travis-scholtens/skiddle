@@ -14,11 +14,14 @@ import json
 import math
 import networkx #type:ignore
 import os
+import random
 import re
 from time import time
 import trueskill #type:ignore
 from typing import Callable, Dict, Generator, Iterable, List, NewType, Optional, Tuple, TypeAlias, Union
 from urllib import parse, request
+
+random.seed(0)
 
 @dataclass(frozen=True)
 class Url:
