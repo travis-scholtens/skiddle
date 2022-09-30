@@ -479,7 +479,7 @@ def through_time(matches: list[Match]) -> dict[Player, list[tuple[int, ttt.Gauss
   t = []
   for match in matches:
     teams.append((match.home, match.away))
-    res.append(reversed(ranks(match))
+    res.append(reversed(ranks(match)))
     t.append(match.date.toordinal())
   history = ttt.History(teams, results=res, times=t,
                         sigma=1.6, gamma=0.036,
