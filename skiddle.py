@@ -506,9 +506,15 @@ def update_ranks_doc(doc: DocumentReference, ranks: dict) -> None:
   if sorted_names(ranks['skill']) != sorted_names(previous.get('skill', {})):
     ranks['previous_skill'] = previous['skill']
     ranks['previous_skill_time'] = ts
+  elif 'previous_skill' in previous:
+    ranks['previous_skill'] = previous['previous_skill']
+    ranks['previous_skill_time'] = previous['previous_skill_time']
   if sorted_names(ranks['pti']) != sorted_names(previous.get('pti', {})):
     ranks['previous_pti'] = previous['pti']
     ranks['previous_pti_time'] = ts
+  elif 'previous_pti' in previous:
+    ranks['previous_pti'] = previous['previous_pti']
+    ranks['previous_pti_time'] = previous['previous_pti_time']
   ranks['updated_time'] = ts
   doc.set(ranks)
 
