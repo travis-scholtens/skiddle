@@ -228,6 +228,19 @@ def identify_cohorts(matches: list[Match]) -> dict[Player, Cohort]:
   return community_louvain.best_partition(
       networkx.Graph(edges))
 
+def write_cohorts(cohorts: dict[Player, Cohort], league: League, db: FirestoreClient) -> None:
+  db.collection('cohorts').document(league).set({
+      repr(player): [repr(cohort) for (player, cohort) in cohorts.items()]
+  })
+  print(f'Wrote {len(cohorts)} cohorts')
+
+def read_cohorts(league: League, db: FirestoreClient) -> dict[Player, Cohort]:
+  cohorts = {eval(player): eval(cohort) for (player, cohort) in
+      db.collection('cohorts').document(league).get().to_dict().items()
+  }
+  print(f'Read {len(cohorts)} cohorts')
+  return cohorts
+
 def draw(match: Match) -> bool:
   return sum([abs(h-a) for (h,a) in match.score])/len(match.score) < 2
 
@@ -315,9 +328,9 @@ def main_cohort(cohorts: dict[Player, Cohort], players: set[Player]) -> Cohort:
   return Cohort(max(range(len(cohort_counts)), key=lambda i: cohort_counts[i]))
 
 def division_ratings(
+    cohorts: dict[Player, Cohort],
     divisions: dict[Division, set[Player]],
     matches: list[Match]) -> tuple[trueskill.TrueSkill, dict[Division, dict[Player, trueskill.Rating]]]:
-  cohorts = identify_cohorts(matches)
   env = rating_env(matches)
   skills = cohort_skill(env, cohorts, matches)
   deltas = cohort_deltas(set(cohorts.values()), skills)
@@ -448,11 +461,12 @@ def bootstrap(home: BeautifulSoup,
               league: League,
               get_link: Callable[[bs4.Tag], BeautifulSoup],
               db: FirestoreClient) -> None:
-   write_matches(
-       archive_matches(get_link(home.find('a', string='Archives')),
-                       get_link),
-       league,
-       db)
+   matches = archive_matches(
+       get_link(home.find('a', string='Archives')),
+       get_link)
+   cohorts = identify_cohorts(matches)
+   write_matches(matches, league, db)
+   write_cohorts(cohorts, league, db)
 
 def update_skills(
     env: trueskill.TrueSkill,
@@ -533,9 +547,9 @@ def t_rating(
                       sigma=math.sqrt(skill.sigma * skill.sigma + delta.sigma * delta.sigma))
 
 def division_through_time(
+    cohorts: dict[Player, Cohort],
     divisions: dict[Division, set[Player]],
     matches: list[Match]) -> dict[Division, dict[Player, ttt.Gaussian]]:
-  cohorts = identify_cohorts(matches)
   skills = cohort_tskill(cohorts, matches)
   deltas = cohort_tdeltas(set(cohorts.values()), skills)
   ratings: dict[Division, dict[Player, ttt.Gaussian]] = {}
@@ -693,15 +707,20 @@ if __name__ == '__main__':
     print('Bootstrapping')
     bootstrap(home, league, get_link, db)
   else:
-    print('Setting initial skill')
     matches = read_matches(league, db)
+    cohorts = read_cohorts(league, db)
+
+    print('Setting initial skill')
     rosters = get_rosters(home, get_link)
     (env, ratings) = division_ratings(
+        cohorts,
         {division: players(teams) for (division, teams) in rosters.items()},
         matches)
     t_ratings = division_through_time(
+        cohorts,
         {division: players(teams) for (division, teams) in rosters.items()},
         matches)
+
     print('Updating')
     current_matches = new_matches(home, get_link)
     update_skills(env, ratings, current_matches)
