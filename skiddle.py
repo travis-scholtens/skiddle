@@ -230,7 +230,7 @@ def identify_cohorts(matches: list[Match]) -> dict[Player, Cohort]:
 
 def write_cohorts(cohorts: dict[Player, Cohort], league: League, db: FirestoreClient) -> None:
   db.collection('cohorts').document(league).set({
-      repr(player): [repr(cohort) for (player, cohort) in cohorts.items()]
+      repr(player): repr(cohort) for (player, cohort) in cohorts.items()
   })
   print(f'Wrote {len(cohorts)} cohorts')
 
