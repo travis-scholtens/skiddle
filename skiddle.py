@@ -626,6 +626,7 @@ def populate_ranks(env: trueskill.TrueSkill,
   learning_ranks: dict[str, Optional[float]] = {n.name: learning_curves[n][-1][1].mu - 3*learning_curves[n][-1][1].sigma/2 for n in team.roster if n in learning_curves}
   cohort_learning_ranks: dict[str, Optional[float]] = {n.name: tskill[n].mu - 3*tskill[n].sigma/2 for n in team.roster if n in tskill}
   pti_ranks: dict[str, Optional[float]] = {n.name: pti[n] for n in team.roster if n in pti}
+  
   for player in team.roster:
     name = player.name
     if name not in skill_ranks:
@@ -636,7 +637,10 @@ def populate_ranks(env: trueskill.TrueSkill,
       cohort_learning_ranks[name] = None
     if name not in pti_ranks:
       pti_ranks[name] = None
-  return { 'name': team.name, 'skill': skill_ranks, 'tskill': learning_ranks, 'divtskill': cohort_learning_ranks, 'pti': pti_ranks }
+
+  tskill_stats = {n.name: [tskill[n].mu, tskill[n].sigma] for n in team.roster if n in tskill}
+
+  return { 'name': team.name, 'skill': skill_ranks, 'tskill': learning_ranks, 'divtskill': cohort_learning_ranks, 'divtskillstats': tskill_stats, 'pti': pti_ranks }
 
 def sorted_names(ranks: dict) -> list:
   return [item[0] for item in
