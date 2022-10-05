@@ -622,9 +622,9 @@ def populate_ranks(env: trueskill.TrueSkill,
                    learning_curves: dict[Player, list[tuple[int, ttt.Gaussian]]],
                    tskill: dict[Player, ttt.Gaussian],
                    pti: dict[Player, float]) -> dict:
-  skill_ranks: dict[str, Optional[float]] = {n.name: env.expose(skill[n]) for n in team.roster if n in skill}
-  learning_ranks: dict[str, Optional[float]] = {n.name: learning_curves[n][-1][1].mu - 3*learning_curves[n][-1][1].sigma for n in team.roster if n in learning_curves}
-  cohort_learning_ranks: dict[str, Optional[float]] = {n.name: tskill[n].mu - 3*tskill[n].sigma for n in team.roster if n in tskill}
+  skill_ranks: dict[str, Optional[float]] = {n.name: skill[n].mu - 3*skill[n].sigma/2 for n in team.roster if n in skill}
+  learning_ranks: dict[str, Optional[float]] = {n.name: learning_curves[n][-1][1].mu - 3*learning_curves[n][-1][1].sigma/2 for n in team.roster if n in learning_curves}
+  cohort_learning_ranks: dict[str, Optional[float]] = {n.name: tskill[n].mu - 3*tskill[n].sigma/2 for n in team.roster if n in tskill}
   pti_ranks: dict[str, Optional[float]] = {n.name: pti[n] for n in team.roster if n in pti}
   for player in team.roster:
     name = player.name
