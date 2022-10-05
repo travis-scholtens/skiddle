@@ -282,7 +282,7 @@ def cohort_skill(
 
 def mean_rating(ratings: list[trueskill.Rating]) -> trueskill.Rating:
   return trueskill.Rating(mu=sum([r.mu for r in ratings])/len(ratings),
-                          sigma=math.sqrt(sum([r.sigma * r.sigma for r in ratings])/len(ratings)))
+                          sigma=math.sqrt(sum([r.sigma * r.sigma for r in ratings]))/len(ratings))
 
 @dataclass
 class ZeroDelta:
@@ -338,10 +338,12 @@ def division_ratings(
   for (division, players) in divisions.items():
     target_cohort = main_cohort(cohorts, players)
     ratings[division] = {
-        player: rating(
-            env,
-            skills[cohorts[player]].get(player),
-            deltas.get((cohorts[player], target_cohort)))
+        player: skills[target_cohort].get(
+            player,
+            rating(
+                env,
+                skills[cohorts[player]].get(player),
+                deltas.get((cohorts[player], target_cohort))))
         for player in players if player in cohorts
     }
   print(f'Assigned {sum([len(d) for d in ratings.values()])} initial ratings')
@@ -515,7 +517,7 @@ def cohort_tskill(
 
 def mean_t_rating(ratings: list[ttt.Gaussian]) -> ttt.Gaussian:
   return ttt.Gaussian(mu=sum([r.mu for r in ratings])/len(ratings),
-                      sigma=math.sqrt(sum([r.sigma * r.sigma for r in ratings])/len(ratings)))
+                      sigma=math.sqrt(sum([r.sigma * r.sigma for r in ratings]))/len(ratings))
 
 def mean_skill_tdelta(from_skill: Dict[Player, ttt.Gaussian], to_skill: Dict[Player, ttt.Gaussian]) -> ttt.Gaussian | ZeroDelta:
   if from_skill == to_skill:
@@ -556,9 +558,11 @@ def division_through_time(
   for (division, players) in divisions.items():
     target_cohort = main_cohort(cohorts, players)
     ratings[division] = {
-        player: t_rating(
-            skills[cohorts[player]].get(player),
-            deltas.get((cohorts[player], target_cohort)))
+        player: skills[target_cohort].get(
+            player, 
+            t_rating(
+                skills[cohorts[player]].get(player),
+                deltas.get((cohorts[player], target_cohort))))
         for player in players if player in cohorts
     }
   return ratings
