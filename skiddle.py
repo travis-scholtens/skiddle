@@ -570,12 +570,14 @@ def division_through_time(
 def updated_tskills(
     division_ratings: dict[Division, dict[Player, ttt.Gaussian]],
     division_matches: dict[Division, list[Match]]) -> dict[Division, dict[Player, ttt.Gaussian]]:
+  gamma = 0.036
   ratings: dict[Division, dict[Player, ttt.Gaussian]] = {}
   for (division, matches) in division_matches.items():
     if not matches:
       ratings[division] = division_ratings[division]
       continue
-    skill = division_ratings[division]
+    skill = {player: ttt.Player(prior=skill, gamma=gamma)
+             for (player, skill) in division_ratings[division].items()}
     teams = []
     res = []
     t = []
@@ -584,8 +586,8 @@ def updated_tskills(
       res.append(list(reversed(ranks(match))))
       t.append(match.date.toordinal())
     history = ttt.History(teams, results=res, times=t,
-                          priors=division_ratings[division],
-                          sigma=1.6, gamma=0.036,
+                          priors=skill,
+                          sigma=1.6, gamma=gamma,
                           p_draw=len([m for m in matches if draw(m)])/len(matches))
     history.convergence(epsilon=0.01, iterations=10)
     ratings[division] = {name: item[-1][1] for (name, item) in history.learning_curves().items()}
