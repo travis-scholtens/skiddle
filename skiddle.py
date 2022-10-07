@@ -558,11 +558,9 @@ def division_through_time(
   for (division, players) in divisions.items():
     target_cohort = main_cohort(cohorts, players)
     ratings[division] = {
-        player: skills[target_cohort].get(
-            player, 
-            t_rating(
-                skills[cohorts[player]].get(player),
-                deltas.get((cohorts[player], target_cohort))))
+        player: t_rating(
+            skills[cohorts[player]].get(player),
+            deltas.get((cohorts[player], target_cohort)))
         for player in players if player in cohorts
     }
   return ratings
