@@ -588,7 +588,8 @@ def updated_tskills(
                           sigma=1.6, gamma=gamma,
                           p_draw=len([m for m in matches if draw(m)])/len(matches))
     history.convergence(epsilon=0.01, iterations=10)
-    ratings[division] = {name: item[-1][1] for (name, item) in history.learning_curves().items()}
+    ratings[division] = dict(division_ratings[division])
+    ratings[division].update({name: item[-1][1] for (name, item) in history.learning_curves().items()})
   return ratings
 
 def through_time(matches: list[Match]) -> dict[Player, list[tuple[int, ttt.Gaussian]]]:
