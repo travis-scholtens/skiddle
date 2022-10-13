@@ -627,9 +627,9 @@ def get_pti(home: BeautifulSoup,
 def partner_skills(roster: list[Player],
                    partners: set[tuple[Player, Player]],
                    skill: dict[Player, ttt.Gaussian]
-                   ) -> list[tuple[Player, Player, float, float, float]]:
+                   ) -> list[tuple[str, str, float, float, float]]:
   stats = []
-  for (a, b) in itertools.prohuct(roster, roster):
+  for (a, b) in itertools.product(roster, roster):
     if a < b and (a, b) in partners and all([p in skill for p in (a, b)]):
       combo = skill[a] + skill[b]
       stats.append([a.name, b.name, combo.mu, combo.sigma, combo.mu - 3*combo.sigma/2])
