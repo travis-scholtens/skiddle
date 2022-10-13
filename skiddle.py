@@ -470,7 +470,7 @@ def bootstrap(home: BeautifulSoup,
    write_matches(matches, league, db)
    write_cohorts(cohorts, league, db)
 
-def partnerships(matches: list[Match]) -> set[tuple[Player, Player]]
+def partnerships(matches: list[Match]) -> set[tuple[Player, Player]]:
   partners = set()
   for match in matches:
     partners.add(match.home)
