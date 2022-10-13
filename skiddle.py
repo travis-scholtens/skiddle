@@ -632,7 +632,7 @@ def partner_skills(roster: list[Player],
   for (a, b) in itertools.product(roster, roster):
     if a < b and (a, b) in partners and all([p in skill for p in (a, b)]):
       combo = skill[a] + skill[b]
-      stats.append([a.name, b.name, combo.mu, combo.sigma, combo.mu - 3*combo.sigma/2])
+      stats.append((a.name, b.name, combo.mu, combo.sigma, combo.mu - 3*combo.sigma/2))
   return stats
 
 def populate_ranks(env: trueskill.TrueSkill,
