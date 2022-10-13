@@ -470,6 +470,13 @@ def bootstrap(home: BeautifulSoup,
    write_matches(matches, league, db)
    write_cohorts(cohorts, league, db)
 
+def partnerships(matches: list[Match]) -> set[tuple[Player, Player]]
+  partners = set()
+  for match in matches:
+    partners.add(match.home)
+    partners.add(match.away)
+  return partners
+
 def update_skills(
     env: trueskill.TrueSkill,
     division_ratings: dict[Division, dict[Player, trueskill.Rating]],
@@ -617,8 +624,20 @@ def get_pti(home: BeautifulSoup,
       for tds in [tr.find_all('td')]
   }
 
+def partner_skills(roster: list[Player],
+                   partners: set[tuple[Player, Player]],
+                   skill: dict[Player, ttt.Gaussian]
+                   ) -> list[tuple[Player, Player, float, float, float]]:
+  stats = []
+  for (a, b) in itertools.prohuct(roster, roster):
+    if a < b and (a, b) in partners and all([p in skill for p in (a, b)]):
+      combo = skill[a] + skill[b]
+      stats.append([a.name, b.name, combo.mu, combo.sigma, combo.mu - 3*combo.sigma/2])
+  return stats
+
 def populate_ranks(env: trueskill.TrueSkill,
                    team: Team,
+                   partners: set[tuple[Player, Player]],
                    skill: dict[Player, trueskill.Rating],
                    learning_curves: dict[Player, list[tuple[int, ttt.Gaussian]]],
                    tskill: dict[Player, ttt.Gaussian],
@@ -641,7 +660,9 @@ def populate_ranks(env: trueskill.TrueSkill,
 
   tskill_stats = {n.name: [tskill[n].mu, tskill[n].sigma] for n in team.roster if n in tskill}
 
-  return { 'name': team.name, 'skill': skill_ranks, 'tskill': learning_ranks, 'divtskill': cohort_learning_ranks, 'divtskillstats': tskill_stats, 'pti': pti_ranks }
+  partner_stats = partner_skills(team.roster, partners, tskill)
+
+  return { 'name': team.name, 'skill': skill_ranks, 'tskill': learning_ranks, 'divtskill': cohort_learning_ranks, 'divtskillstats': tskill_stats, 'pti': pti_ranks, 'partners': partner_stats }
 
 def sorted_names(ranks: dict) -> list:
   return [item[0] for item in
@@ -666,6 +687,7 @@ def update_ranks(
     env: trueskill.TrueSkill,
     league: League,
     rosters: Dict[Division, List[Team]],
+    partners: set[tuple[Player, Player]],
     ratings: dict[Division, dict[Player, trueskill.Rating]],
     learning_curves: dict[Player, list[tuple[int, ttt.Gaussian]]],
     t_ratings: dict[Division, dict[Player, ttt.Gaussian]],
@@ -703,7 +725,7 @@ def update_ranks(
               .collection('teams')
               .document(abbrs[team.name]),
           populate_ranks(
-              env, team, ratings[division], learning_curves, t_ratings[division], pti))
+              env, team, partners, ratings[division], learning_curves, t_ratings[division], pti))
   print(f'Wrote ratings for {sum([len(d) for d in rosters.values()])} teams')
 
 if __name__ == '__main__':
@@ -733,7 +755,9 @@ if __name__ == '__main__':
     print('Updating')
     current_matches = new_matches(home, get_link)
     update_skills(env, ratings, current_matches)
-    learning_curves = through_time(sum([matches] + [list(ms) for ms in current_matches.values()], []))
+    all_matches = sum([matches] + [list(ms) for ms in current_matches.values()], [])
+    partners = partnerships(all_matches)
+    learning_curves = through_time(all_matches)
     t_ratings = updated_tskills(t_ratings, current_matches)
     pti = get_pti(home, get_link)
-    update_ranks(env, league, rosters, ratings, learning_curves, t_ratings, pti, db)
+    update_ranks(env, league, rosters, partners, ratings, learning_curves, t_ratings, pti, db)
