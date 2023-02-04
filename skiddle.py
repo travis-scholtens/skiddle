@@ -355,15 +355,10 @@ def read_division(team: BeautifulSoup) -> Division:
       .stripped_strings))
 
 def read_team_and_club_name(team: BeautifulSoup) -> Tuple[str, str]:
-  print('|'.join([s for s in team.find(id='home_right').stripped_strings]))
   ss = team.find(id='home_right').stripped_strings
-  #next(ss)
   return (next(ss), next(ss))
 
 def read_players(team: BeautifulSoup, name: str) -> Generator[Player, None, None]:
-  print('looking for', name)
-  for th in team.find('th'):
-    print(th)
   for tr in team.find('th', string=lambda s: name in s).find_parent('table').find_all('tr'):
     if tr.find('th'):
       if next(tr.stripped_strings) not in (name, 'Captains', 'Players', 'Players Also Subbing for Other Teams'):
