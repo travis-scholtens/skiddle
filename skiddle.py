@@ -241,19 +241,17 @@ def read_cohorts(league: League, db: FirestoreClient) -> dict[Player, Cohort]:
   print(f'Read {len(cohorts)} cohorts')
   return cohorts
 
-def draw(match: Match) -> bool:
-  return sum([abs(h-a) for (h,a) in match.score])/len(match.score) < 2
-
 def rating_env(matches: list[Match]) -> trueskill.TrueSkill:
-  return trueskill.TrueSkill(draw_probability=len([m for m in matches if draw(m)])/len(matches))
+  return trueskill.TrueSkill(draw_probability=0)
 
-def ranks(match: Match) -> tuple[int, int]:
-  if draw(match):
-    return (0,0)
-  elif set_winner(match.score[-1]) == 0:
-    return (0,1)
-  else:
-    return (1,0)
+def game_ranks(match: Match) -> Generator[tuple[int, int], None, None]:
+  games_won = [sum([s[i] for s in match.score]) for i in range(2)]
+  winner = set_winner(match.score[-1])
+  while any(games_won):
+    if games_won[winner]:
+      yield (0,1) if winner == 0 else (1,0)
+      games_won[winner] -= 1
+    winner = 1 if winner == 0 else 0  
 
 def cohort_skill(
     env: trueskill.TrueSkill,
@@ -268,12 +266,13 @@ def cohort_skill(
       if not any([cohorts.get(player) == cohort
                   for player in (match.home + match.away)]):
         continue
-      (home, away) = env.rate(
-          [(cohort_skill.get(match.home[0], env.create_rating()),
+      (home, away) = [
+           (cohort_skill.get(match.home[0], env.create_rating()),
             cohort_skill.get(match.home[1], env.create_rating())),
            (cohort_skill.get(match.away[0], env.create_rating()),
-            cohort_skill.get(match.away[1], env.create_rating()))],
-          ranks=ranks(match))
+            cohort_skill.get(match.away[1], env.create_rating()))]
+      for game_rank in game_ranks(match):
+        (home, away) = env.rate((home, away), ranks=game_rank)
       cohort_skill[match.home[0]] = home[0]
       cohort_skill[match.home[1]] = home[1]
       cohort_skill[match.away[0]] = away[0]
@@ -483,12 +482,13 @@ def update_skills(
   for (division, matches) in division_matches.items():
     skill = division_ratings[division]
     for match in sorted(matches):
-      (home, away) = env.rate(
-          [(skill.get(match.home[0], env.create_rating()),
+      (home, away) = [
+           (skill.get(match.home[0], env.create_rating()),
             skill.get(match.home[1], env.create_rating())),
            (skill.get(match.away[0], env.create_rating()),
-            skill.get(match.away[1], env.create_rating()))],
-          ranks=ranks(match))
+            skill.get(match.away[1], env.create_rating()))]
+      for game_rank in game_ranks(match):
+        (home, away) = env.rate((home, away), ranks=game_rank)
       skill[match.home[0]] = home[0]
       skill[match.home[1]] = home[1]
       skill[match.away[0]] = away[0]
@@ -508,13 +508,14 @@ def cohort_tskill(
       if not any([cohorts.get(player) == cohort
                   for player in (match.home + match.away)]):
         continue
-      teams.append((match.home, match.away))
-      res.append(list(reversed(ranks(match))))
-      t.append(match.date.toordinal())
+      for game_rank in game_ranks(match):
+        teams.append((match.home, match.away))
+        res.append(list(reversed(game_rank)))
+        t.append(match.date.toordinal())
       
     history = ttt.History(teams, results=res, times=t,
                           sigma=1.6, gamma=0.036,
-                          p_draw=len([m for m in matches if draw(m)])/len(matches))
+                          p_draw=0)
     history.convergence(epsilon=0.01, iterations=10)
     skills[cohort] = {
       name: ratings[-1][1]
@@ -586,13 +587,14 @@ def updated_tskills(
     res = []
     t = []
     for match in matches:
-      teams.append((match.home, match.away))
-      res.append(list(reversed(ranks(match))))
-      t.append(match.date.toordinal())
+      for game_rank in game_ranks(match):
+        teams.append((match.home, match.away))
+        res.append(list(reversed(game_rank)))
+        t.append(match.date.toordinal())
     history = ttt.History(teams, results=res, times=t,
                           priors=skill,
                           sigma=1.6, gamma=gamma,
-                          p_draw=len([m for m in matches if draw(m)])/len(matches))
+                          p_draw=0)
     history.convergence(epsilon=0.01, iterations=10)
     ratings[division] = dict(division_ratings[division])
     ratings[division].update({name: item[-1][1] for (name, item) in history.learning_curves().items()})
@@ -603,12 +605,13 @@ def through_time(matches: list[Match]) -> dict[Player, list[tuple[int, ttt.Gauss
   res = []
   t = []
   for match in matches:
-    teams.append((match.home, match.away))
-    res.append(list(reversed(ranks(match))))
-    t.append(match.date.toordinal())
+    for game_rank in game_ranks(match):
+      teams.append((match.home, match.away))
+      res.append(list(reversed(game_rank)))
+      t.append(match.date.toordinal())
   history = ttt.History(teams, results=res, times=t,
                         sigma=1.6, gamma=0.036,
-                        p_draw=len([m for m in matches if draw(m)])/len(matches))
+                        p_draw=0)
   history.convergence(epsilon=0.01, iterations=10)
   return history.learning_curves()
 
