@@ -132,7 +132,7 @@ def get_schedule_matches(schedule: BeautifulSoup, get_link: Callable[[bs4.Tag], 
     yield list(get_individual_matches(items[0].find('a'), get_link))
 
 def get_team_matches(team: BeautifulSoup, get_link: Callable[[bs4.Tag], BeautifulSoup]) -> List[Match]:
-  return sum(get_schedule_matches(get_link(team.find('a', string='Show Schedule')), get_link), [])
+  return sum(get_schedule_matches(get_link(team.find('a', string='Schedule')), get_link), [])
 
 def get_division_matches(division: BeautifulSoup, get_link: Callable[[bs4.Tag], BeautifulSoup]) -> List[Match]:
   return sum([get_team_matches(get_link(a), get_link) for a in division.find('th', string=re.compile('Team (Name|Standings)')).find_parent('table').find_all('a', href=lambda s: s != '#')], [])
