@@ -135,7 +135,7 @@ def get_team_matches(team: BeautifulSoup, get_link: Callable[[bs4.Tag], Beautifu
   return sum(get_schedule_matches(get_link(team.find('a', string='Show Schedule')), get_link), [])
 
 def get_division_matches(division: BeautifulSoup, get_link: Callable[[bs4.Tag], BeautifulSoup]) -> List[Match]:
-  return sum([get_team_matches(get_link(a), get_link) for a in division.find('th', string='TeamName').find_parent('table').find_all('a', href=lambda s: s != '#')], [])
+  return sum([get_team_matches(get_link(a), get_link) for a in division.find('th', string=re.compile('Team (Name|Standings)')).find_parent('table').find_all('a', href=lambda s: s != '#')], [])
 
 def get_matches(paths: Iterable[bs4.Tag], get_link: Callable[[bs4.Tag], BeautifulSoup]) -> List[Match]:
   return sum([get_division_matches(get_link(path), get_link) for path in paths], [])
