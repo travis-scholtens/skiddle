@@ -78,22 +78,9 @@ def expand_fn(url: Url) -> tuple[League, Callable[[bs4.Tag], Url]]:
   return (League(uri.netloc.split('.')[0]),
           lambda link: Url(host + link['href']))
 
-def get_division_paths(year: BeautifulSoup) -> Generator[bs4.Tag, None, None]:
-  for option in year.find_all('option'):    
-    form = option.find_parent('form')
-    params = []
-    for control in form.find_all(True):
-      if 'name' not in control.attrs:
-        continue
-      param = control['name']
-      if 'value' in control.attrs:
-        value_source = control
-      elif any([child == option for child in control.descendants]):
-        value_source = option
-      if value_source:
-        param += '=' + value_source['value']
-      params.append(param)
-    yield bs4.Tag(name='a', attrs={'href': f'{form["action"]}?{"&".join(params)}'})
+def get_division_paths(archive: BeautifulSoup) -> Generator[bs4.Tag, None, None]:
+  for div in archive.find_all('div', class_='divgs_div_instance'):
+    yield div.find('a')
 
 def transpose_scores(home_scores: Tuple[str, str, str], away_scores: Tuple[str, str, str]) -> Score:
   third_set_scores = {home_scores[2], away_scores[2]}
@@ -197,11 +184,7 @@ archive_matches: Callable[[BeautifulSoup, Callable[[bs4.Tag], BeautifulSoup]], L
       valid_matches(
           unique_matches(
               get_matches(
-                  get_division_paths(
-                      get_link(
-                          archive.find('h2', string='Seasons:').parent.find('a')
-                      )
-                  ),
+                  get_division_paths(archive),
                   get_link
               )
           )
