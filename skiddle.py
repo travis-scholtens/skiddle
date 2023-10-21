@@ -343,7 +343,7 @@ def read_team_and_club_name(team: BeautifulSoup) -> Tuple[str, str]:
 def read_players(team: BeautifulSoup, name: str) -> Generator[Player, None, None]:
   for tr in team.find('th', string=lambda s: name in s).find_parent('table').find_all('tr'):
     if tr.find('th'):
-      if next(tr.stripped_strings) not in (name, 'Captains', 'Players', 'Players Also Subbing for Other Teams'):
+      if next(tr.stripped_strings) not in (name, 'Captains', 'Players', 'Players Also Subbing for Other Teams', 'Players Subbing for this Team'):
         break
       else:
         continue
